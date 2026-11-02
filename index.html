@@ -878,7 +878,7 @@ window.__tick=function(dt){_tickFar();_clk+=dt;
           if(free)grp.forEach(function(g){ZONES[g.z].h=i;m.zh[g.z]=g.b});
           else if(de>-3)tg=Math.min(tg,Math.sqrt(10*Math.max(0,de-0.8)))}}}
     m.tg0=tg;
-    if(!stop&&m.c.visible&&!(m.ghost>0)){var off=semi?(m.p.rev?4.4:3.6):(m.kind==='bus'?2.4:1.5),
+    if(!stop&&m.c.visible&&!(m.ghost>0)){var off=semi?(m.p.rev?4.4:6.0):(m.kind==='bus'?3.6:2.8),
         Ls=Math.min(5+m.v*1.6+m.v*m.v/12,dc),R2=(Ls+off+14)*(Ls+off+14),Q=[];
       for(var sd=0;sd<=Ls+0.01;sd+=1.2){var q=sd===0?m.p:poseAt(m,m.d+sd);Q.push([q.x+q.fx*off,q.z+q.fz*off,sd])}
       for(j=0;j<n;j++){if(j===i)continue;var o=movers2[j];if(!o.c.visible)continue;var ddx=o.rx-m.rx,ddz=o.rz-m.rz;if(ddx*ddx+ddz*ddz>R2)continue;
