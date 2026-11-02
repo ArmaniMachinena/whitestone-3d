@@ -502,7 +502,16 @@ P=G(64,7);(function(){
 /* ---------- машины и люди ---------- */
 function wheel(r,x,z){var w=cyl(r,r,0.3,M(0x1c1f22,{roughness:.8}),x,r,z,36);w.rotation.x=Math.PI/2;return w}
 /* ---------- тягачи в стиле Tesla Semi: тонированный стеклянный фонарь, водитель по центру, маячки, детальные колёса ---------- */
-var _cab=null,_cabM={},_whl={},_tankM=null,_dT=null;
+var _cab=null,_cabM={},_whl={},_tankM=null,_dT=null,_envTex=null,ENVM=[],BEACONS=[];
+/* окружение для бликов на краске и хроме: небо сверху, степь снизу */
+function vehEnv(){if(_envTex)return _envTex;
+  /* куб из шести картинок: небо сверху, горизонт по бокам, степь снизу */
+  function face(kind){var c=document.createElement('canvas');c.width=c.height=128;var x=c.getContext('2d');
+    if(kind==='up'){x.fillStyle='#5c8fd6';x.fillRect(0,0,128,128)}else if(kind==='down'){x.fillStyle='#8a8466';x.fillRect(0,0,128,128)}
+    else{var g=x.createLinearGradient(0,0,0,128);g.addColorStop(0,'#6f9ee0');g.addColorStop(0.47,'#e6eef7');g.addColorStop(0.53,'#b9b08a');g.addColorStop(1,'#7d775c');x.fillStyle=g;x.fillRect(0,0,128,128)}return c}
+  _envTex=new THREE.CubeTexture([face('s'),face('s'),face('up'),face('down'),face('s'),face('s')]);_envTex.encoding=THREE.sRGBEncoding;_envTex.needsUpdate=true;return _envTex}
+function shine(g){var e=vehEnv();g.traverse(function(o){if(!o.isMesh||!o.material||!o.material.isMeshStandardMaterial)return;var m=o.material;if(m.envMap)return;
+  if(m.metalness>0.15||m.roughness<0.35){m.envMap=e;m.envMapIntensity=m.metalness>0.5?1.0:0.6;m.needsUpdate=true;ENVM.push(m)}})}
 var mCabGlass=new THREE.MeshStandardMaterial({color:0x061017,roughness:.05,metalness:.55,transparent:true,opacity:.56,depthWrite:false,side:THREE.DoubleSide});
 var mTire=new THREE.MeshStandardMaterial({color:0x17191b,roughness:.92,side:THREE.DoubleSide}),mRim=M(0xd9dee2,{roughness:.22,metalness:.85}),mHub=M(0x58616a,{roughness:.4,metalness:.7});
 var mSkin=M(0xc8956c,{roughness:.7}),mVest=M(0xff7a1a,{roughness:.6}),mRefl=M(0xe8eef0,{roughness:.3,metalness:.4}),mHelm=M(0xf4f6f6,{roughness:.35}),mPants=M(0x23324a,{roughness:.8}),mSeat=M(0x1f2428,{roughness:.8}),mHair=M(0x15120f,{roughness:.9});
@@ -550,8 +559,20 @@ function decalCanvas(){return canv(1024,224,function(x,w,h){x.clearRect(0,0,w,h)
   x.fillStyle='#0f7f76';x.font='italic 400 40px "Golos Text", Arial, Helvetica, sans-serif';x.fillText('Unlocking Kazakhstan Opportunities',w/2,204)})}
 function decalMat(){if(!_dT)_dT=new THREE.MeshStandardMaterial({map:decalCanvas(),transparent:true,roughness:.4,depthWrite:false});return _dT}
 function decalTank(){return decalMat()}function decalBox(){return decalMat()}
-function beacon(x,y,z,bc){var g=new THREE.Group(),bm=new THREE.MeshBasicMaterial({color:0x5a3c00});g.add(ns(cyl(0.1,0.12,0.08,mDark,0,0,0,12)));
-  var d=ns(mesh(new THREE.SphereGeometry(0.12,14,8,0,Math.PI*2,0,Math.PI/2),bm,0,0.04,0,false));g.add(d);g.position.set(x,y,z);bc.push(bm);return g}
+var _bTex=null;function beaconTex(){if(_bTex)return _bTex;var c=document.createElement('canvas');c.width=c.height=128;var x=c.getContext('2d'),gr=x.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,240,190,1)');gr.addColorStop(0.18,'rgba(255,190,60,0.9)');gr.addColorStop(0.5,'rgba(255,150,20,0.25)');gr.addColorStop(1,'rgba(255,140,0,0)');x.fillStyle=gr;x.fillRect(0,0,128,128);
+  var b=document.createElement('canvas');b.width=256;b.height=32;var y=b.getContext('2d'),lg=y.createLinearGradient(0,0,256,0);lg.addColorStop(0,'rgba(255,200,90,0.9)');lg.addColorStop(1,'rgba(255,160,30,0)');y.fillStyle=lg;y.fillRect(0,0,256,32);
+  y.globalCompositeOperation='destination-in';var vg=y.createLinearGradient(0,0,0,32);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(0.5,'rgba(0,0,0,1)');vg.addColorStop(1,'rgba(0,0,0,0)');y.fillStyle=vg;y.fillRect(0,0,256,32);
+  return _bTex={glow:new THREE.CanvasTexture(c),beam:new THREE.CanvasTexture(b)}}
+function beacon(x,y,z,bc){var g=new THREE.Group(),bm=new THREE.MeshBasicMaterial({color:0x5a3c00}),T=beaconTex();
+  g.add(ns(cyl(0.12,0.14,0.07,mDark,0,0,0,24)));
+  var lens=new THREE.MeshStandardMaterial({color:0xffa31a,transparent:true,opacity:0.5,roughness:0.08,metalness:0.1,emissive:0x2a1500,depthWrite:false});
+  g.add(ns(mesh(new THREE.CylinderGeometry(0.105,0.12,0.15,28),lens,0,0.11,0,false)));g.add(ns(mesh(new THREE.SphereGeometry(0.105,28,10,0,Math.PI*2,0,Math.PI/2),lens,0,0.185,0,false)));
+  var rot=new THREE.Group();rot.position.y=0.11;rot.add(ns(mesh(new THREE.BoxGeometry(0.025,0.11,0.13),bm,0.035,0,0,false)));rot.add(ns(mesh(new THREE.CylinderGeometry(0.02,0.02,0.12,8),bm,0,0,0,false)));
+  var bmat=new THREE.MeshBasicMaterial({map:T.beam,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,opacity:0.8});
+  [0,Math.PI].forEach(function(a){var p=new THREE.Mesh(new THREE.PlaneGeometry(2.2,0.32),bmat);p.geometry.translate(1.1,0,0);p.rotation.y=a;rot.add(p)});g.add(rot);
+  var gm=new THREE.SpriteMaterial({map:T.glow,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}),gl=new THREE.Sprite(gm);gl.position.y=0.12;g.add(gl);
+  g.position.set(x,y,z);bc.push(bm);BEACONS.push({rot:rot,gl:gl,gm:gm,bm:bmat,ph:Math.random()*6.28});return g}
 /* кабина */
 function semiCab(col,driver){var gg=cabGeo(),g=new THREE.Group(),bc=[];if(!_cabM[col])_cabM[col]=M(col,{roughness:.28,metalness:.25});var cm=_cabM[col];
   g.add(new THREE.Mesh(gg.body,cm));g.add(new THREE.Mesh(gg.roof,cm));
@@ -585,6 +606,16 @@ function buildSemi(g,type,color,driver){var cb=semiCab(type==='box'&&color!==0xf
   function T(o){o.position.x-=HITCH;tr.add(o);return o}
   g.add(box(4.4,0.32,1.1,mDark,2.0,0.78,0));g.add(ns(box(0.9,0.12,2.0,mDark,0.75,1.02,0)));g.add(ns(cyl(0.38,0.38,0.08,mDark,HITCH,1.1,0,16)));
   T(box(5.6,0.3,1.1,mDark,-2.4,0.95,0));
+  /* обтекатели между осями, хромовая полоса бампера, боковые габариты, подножки */
+  [-1,1].forEach(function(sd){g.add(rbox(1.5,0.62,0.1,0.04,_cabM[type==='box'&&color!==0xffffff?color:0xeef1f2]||mDark,2.75,1.0,sd*1.16));
+    g.add(ns(box(0.5,0.04,0.32,mChrome,2.75,0.62,sd*1.08)));
+    g.add(ns(mesh(new THREE.BoxGeometry(0.12,0.06,0.04),new THREE.MeshBasicMaterial({color:0xffa31a}),3.9,1.0,sd*1.23,false)))});
+  g.add(ns(box(0.06,0.08,2.3,mChrome,4.66,0.74,0)));
+  /* прицеп: опоры, боковая защита, светоотражающая лента */
+  [-0.8,0.8].forEach(function(z){T(box(0.12,0.85,0.12,mDark,-0.35,0.62,z));T(ns(box(0.3,0.05,0.3,mDark,-0.35,0.2,z)))});
+  var tape=(function(){var c=document.createElement('canvas');c.width=256;c.height=8;var x=c.getContext('2d');for(var k=0;k<16;k++){x.fillStyle=k%2?'#e8e8e8':'#d11d1d';x.fillRect(k*16,0,16,8)}var t=new THREE.CanvasTexture(c);t.wrapS=THREE.RepeatWrapping;t.repeat.set(3,1);return new THREE.MeshBasicMaterial({map:t})})();
+  [-1,1].forEach(function(sd){[0.78,0.52].forEach(function(y){T(ns(box(2.0,0.05,0.04,mMetal,-1.45,y,sd*1.1)))});
+    var tp=new THREE.Mesh(new THREE.PlaneGeometry(6.0,0.07),tape);tp.position.set(-1.9,type==='tanker'?1.02:1.06,sd*(type==='tanker'?0.58:1.27));if(sd<0)tp.rotation.y=Math.PI;T(ns(tp))});
   if(type==='tanker'){if(!_tankM)_tankM=M(0xf2f4f4,{roughness:.2,metalness:.65});var tm=_tankM;
     var t=cyl(1.15,1.15,5.4,tm,-1.6,2.2,0,64);t.rotation.z=Math.PI/2;T(t);
     [-4.3,1.1].forEach(function(x){var c=mesh(new THREE.SphereGeometry(1.15,48,24),tm,x,2.2,0);c.scale.set(0.3,1,1);T(c)});
@@ -671,6 +702,9 @@ function buildCar(g,type,col){var P=CARP[type],G=carGeo(type),key=type+col;if(!_
   if(P.bed){g.add(ns(box(1.72,0.04,P.w-0.24,mTrim,-1.72,1.29,0)))}
   if(P.bus){[1,-1].forEach(function(s){g.add(ns(box(6.2,0.18,0.02,mTeal,-0.1,1.2,s*(P.w/2+0.02))));var d=new THREE.Mesh(new THREE.PlaneGeometry(3.6,0.8),decalMat());d.position.set(-0.4,0.8,s*(P.w/2+0.03));if(s<0)d.rotation.y=Math.PI;g.add(ns(d))});
     g.add(ns(box(0.03,1.0,0.9,mCarGlass,3.34,1.85,-0.35)));g.add(ns(box(0.6,0.05,0.05,mTrim,3.28,2.5,0)))}
+  /* номера и швы дверей */
+  var plM=M(0xf4f6f6,{roughness:.4});[[fx+0.05,1],[rx-0.05,-1]].forEach(function(q){g.add(ns(box(0.03,0.13,0.46,plM,q[0],P.yb+0.22,0)))});
+  if(!P.bus)[-1,1].forEach(function(sd){P.pil.concat([P.glass[0][0]-0.05]).forEach(function(x){g.add(ns(box(0.012,P.glass[0][1]-P.yb-0.12,0.012,mTrim,x,(P.glass[0][1]+P.yb)/2+0.02,sd*(P.w/2+0.012))))})});
   carWheels(g,P)}
 
 /* стоп-сигналы, поворотники, маячки (свой материал у каждой машины) */
@@ -684,7 +718,7 @@ function car(type,color,noDriver){
   var g=new THREE.Group(),bm=M(color,{roughness:.3,metalness:.6}),gl=mGlass;
   if(CARP[type]){buildCar(g,type,color)}
   else if(type==='tanker'||type==='box'){buildSemi(g,type,color,!noDriver)}
-  g.traverse(function(o){if(o.isMesh){o.castShadow=!o.userData.ns;o.receiveShadow=!o.userData.ns}});addLights(g);if(type==='tanker'||type==='box')g.scale.z=0.9;return g}
+  g.traverse(function(o){if(o.isMesh){o.castShadow=!o.userData.ns;o.receiveShadow=!o.userData.ns}});addLights(g);shine(g);if(type==='tanker'||type==='box')g.scale.z=0.9;return g}
 function put(g,x,z,ry){g.position.set(x,0.3,z);g.rotation.y=ry;add(g);return g}
 /* парковка */
 [['suv',0xffffff],['sedan',0x23272b],['pickup',0xffffff],['suv',0x3a6ea5],['sedan',0xdfe3e5],['bus',0xffffff]].forEach(function(c,i){put(car(c[0],c[1]),-52.5+i*1.8+0.9-(c[0]==='bus'?0.9:0),c[0]==='bus'?3.5:2.5,Math.PI/2)});
@@ -741,14 +775,26 @@ function filletPts(P,R){if(P.length<3)return P;var out=[P[0]];
     var t=Math.min(R*Math.tan(Math.min(th,3.0)/2),d1*0.48,d2*0.48),n=Math.max(2,Math.ceil(th/0.1)),ax=B[0]-u1x*t,az=B[1]-u1z*t,cx=B[0]+u2x*t,cz=B[1]+u2z*t;
     for(var k=0;k<=n;k++){var q=k/n,w0=(1-q)*(1-q),w1=2*(1-q)*q,w2=q*q;out.push([w0*ax+w1*B[0]+w2*cx,w0*az+w1*B[1]+w2*cz])}}
   out.push(P[P.length-1]);return cleanPts(out)}
-function setPath(m,pts){var P=filletPts(cleanPts(pts),m.R||5);m.pts=P;m.L=pathLen(P);m.tot=m.L[m.L.length-1];m.cusp=[];
+function rbtPts(P){if(!RBT||P.length<2)return P;var cx=RBT.x,cz=RBT.z,RI=RBT.rin,RA=RBT.ra,D=[P[0]],i,k;
+  for(i=1;i<P.length;i++){var a=P[i-1],b=P[i],L=Math.hypot(b[0]-a[0],b[1]-a[1]),n=1;
+    var t=Math.max(0,Math.min(1,((cx-a[0])*(b[0]-a[0])+(cz-a[1])*(b[1]-a[1]))/(L*L||1))),dd=Math.hypot(a[0]+(b[0]-a[0])*t-cx,a[1]+(b[1]-a[1])*t-cz);
+    if(dd<RI+3&&!b[2]&&!a[2])n=Math.ceil(L/1.5);for(k=1;k<n;k++)D.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]);D.push(b)}
+  function ins(p){return Math.hypot(p[0]-cx,p[1]-cz)<RI}
+  var out=[];i=0;while(i<D.length){if(!ins(D[i])){out.push(D[i]);i++;continue}var j=i;while(j<D.length&&ins(D[j]))j++;
+    if(!out.length||j>=D.length||D.slice(i,j).some(function(p){return p[2]})){for(k=i;k<j;k++)out.push(D[k]);i=j;continue}
+    var A=out[out.length-1],B=D[j],aIn=Math.atan2(A[1]-cz,A[0]-cx),aOut=Math.atan2(B[1]-cz,B[0]-cx),d=aIn-aOut;
+    while(d<=0.6)d+=Math.PI*2;while(d>Math.PI*2+0.6)d-=Math.PI*2;
+    var a1=aIn-0.38,a2=aOut+0.38,d2=a1-a2;while(d2<=0)d2+=Math.PI*2;var st=Math.ceil(d2/0.18);
+    for(k=0;k<=st;k++){var an=a1-d2*k/st;out.push([cx+Math.cos(an)*RA,cz+Math.sin(an)*RA])}i=j}
+  return out}
+function setPath(m,pts){var P=filletPts(cleanPts(rbtPts(cleanPts(pts))),m.R||5);m.pts=P;m.L=pathLen(P);m.tot=m.L[m.L.length-1];m.cusp=[];
   for(var i=1;i<P.length-1;i++)if((P[i][2]==='r')!==(P[i+1][2]==='r'))m.cusp.push(m.L[i])}
 /* разворот в конце маршрута как у водителя: задним ходом с поворотом вправо, затем вперёд налево */
 function kTurn(E,fx,fz,R){var sx=-fz,sz=fx,P=[],k,a,cx=E[0]+sx*R,cz=E[1]+sz*R,ox=E[0]+sx*R-fx*R*2,oz=E[1]+sz*R-fz*R*2;
   for(k=1;k<=9;k++){a=k/9*Math.PI/2;P.push([cx-sx*R*Math.cos(a)-fx*R*Math.sin(a),cz-sz*R*Math.cos(a)-fz*R*Math.sin(a),'r'])}
   for(k=1;k<=9;k++){a=k/9*Math.PI/2;P.push([ox+fx*R*Math.cos(a)-sx*R*Math.sin(a),oz+fz*R*Math.cos(a)-sz*R*Math.sin(a)])}
   return P}
-function mover2(type,color,pts,speed,u0,opt){opt=opt||{};var c=typeof type==='string'?car(type,color):type;add(c);
+function mover2(type,color,pts,speed,u0,opt){opt=opt||{};var c=typeof type==='string'?car(type,color):type;add(c);shine(c);
   var m={c:c,kind:opt.kind||(typeof type==='string'?type:'flat'),s:speed,v:speed,h:null,ht:null,wait:0,dw:opt.dw||(5+rnd()*5),lane:opt.lane||1.9,rx:null,rz:null,
     R:opt.R||(c.userData.tr?7.5:(type==='bus'?6:4.5)),loop:opt.loop||null,pi:0,hold:false,atEnd:false,onEnd:opt.onEnd||null,onStart:opt.onStart||null};
   if(!m.loop&&pts){var P0=cleanPts(pts);m.loop=[P0,P0.slice().reverse()];m.onEnd=function(mm){mm.wait=mm.dw}}
@@ -776,7 +822,7 @@ function bodyOf(m){var h=m.h,fx=Math.cos(h),fz=-Math.sin(h),x=m.rx,z=m.rz;
   if(m.c.userData.tr){var t=m.ht==null?h:m.ht,tx=Math.cos(t),tz=-Math.sin(t),hx=x+fx*0.6,hz=z+fz*0.6;
     return [[x+fx*3.6,z+fz*3.6],[x+fx*1.4,z+fz*1.4],[hx-tx*1.8,hz-tz*1.8],[hx-tx*4.4,hz-tz*4.4]]}
   var k=m.kind==='bus'?2.4:1.5;return [[x+fx*k,z+fz*k],[x,z],[x-fx*k,z-fz*k]]}
-var _clk=0,CLR=2.3,HARD=2.2,PRI={},ZONES=null;
+var NIGHT_ON=false,_clk=0,CLR=2.3,HARD=2.2,PRI={},ZONES=null;
 /* зоны: места, где пути пересекаются (перекрёстки, развилки), площадки на концах маршрутов, двор и каждый сливной бокс.
    В зону въезжает одна машина и только если за зоной есть куда выехать; зоны ближе 15 м друг к другу берутся вместе */
 function zoneSpans(t){var sp=[],cur={};for(var d=0;d<=t.tot+0.5;d+=1){var dd=Math.min(d,t.tot),p=poseAt(t,dd);
@@ -800,7 +846,9 @@ function buildZones(){var man=[{x:-43,z:-7,r:10}];BAYS.forEach(function(bx){man.
     for(var j=0;j<i;j++){var o=movers2[j],q=o.p||poseAt(o,o.d);if(Math.hypot(q.x-p.x,q.z-p.z)<16)bad=true}
     if(ZONES.some(function(z){return Math.hypot(z.x-p.x,z.z-p.z)<z.r+6}))bad=true;
     if(!bad)break;m.d=Math.max(0,m.d-14)}m.p=poseAt(m,m.d);m.rx=null})}
-window.__tick=function(dt){_tickFar();_clk+=dt;var blink=(_clk*1.7)%1<0.5,n=movers2.length,i,j,k;
+window.__tick=function(dt){_tickFar();_clk+=dt;
+  /* маячки: отражатель крутится, вспышка дважды за оборот */
+  for(var bq=0;bq<BEACONS.length;bq++){var B0=BEACONS[bq],an=_clk*9+B0.ph;B0.rot.rotation.y=an;var fl=Math.pow(Math.abs(Math.cos(an)),10);B0.gm.opacity=0.25+0.75*fl;B0.gl.scale.setScalar(0.45+0.9*fl);B0.bm.opacity=NIGHT_ON?0.85:0.45}var blink=(_clk*1.7)%1<0.5,n=movers2.length,i,j,k;
   if(!ZONES)buildZones();
   for(i=0;i<n;i++){var m=movers2[i];m.p=poseAt(m,m.d);if(m.rx===null||m.h===null){m.rx=m.p.x;m.rz=m.p.z;m.h=m.p.th;m.ht=m.p.th}m.B=bodyOf(m);
     /* зона освобождается, когда машина целиком из неё выехала */
@@ -972,7 +1020,7 @@ function bayOut(b){var bx=BAYS[b];return [[bx,BAYZ],[bx,-13],[bx+(-38.5-bx)*0.45
 })();
 
 /* ---------- дороги по схеме В: внутреннее грузовое кольцо, полоса грузовиков от КПП-1, внешняя объездная; скважины и маршруты ---------- */
-var RING=null,OUTR=null,RT=null;
+var RING=null,OUTR=null,RT=null,RBT={x:-52,z:-82,rin:12.5,ra:6.8};
 (function(){
   RING=roundRect(-64,-80,299,37,16,4);                 /* внутреннее грузовое кольцо вокруг завода */
   OUTR=roundRect(-197,-107,324,140,20,5);               /* внешняя объездная за общим забором */
@@ -984,6 +1032,21 @@ var RING=null,OUTR=null,RT=null;
   /* полоса грузовиков: КПП-1 → вдоль западного забора на север → вдоль северного забора на восток → кольцо */
   var LANE=[[-197,18],[-185,18],[-176,18],[-172,13],[-172,-83],[-167,-88],[-52,-88],[-46,-84],[-44,-80]];
   ribbon(LANE,7,roadMat(),0.36);
+  /* кольцо на стыке: асфальт, разметка уступи дорогу, островок с белым камнем */
+  (function(){var cx=RBT.x,cz=RBT.z,RO=11.2,RI=4.6,i;
+    function lay(geo,dy){var pa=geo.attributes.position;for(i=0;i<pa.count;i++){var x=pa.getX(i)+cx,z=pa.getZ(i)+cz;pa.setXYZ(i,x,roadH(x,z)+dy,z)}geo.computeVertexNormals();return geo}
+    var ag=new THREE.RingGeometry(0.01,RO+1.8,96,16);ag.rotateX(-Math.PI/2);var am=new THREE.MeshStandardMaterial({map:(function(){var t=asphaltTex.clone();t.needsUpdate=true;t.repeat.set(4,4);return t})(),roughness:.95});
+    var a=new THREE.Mesh(lay(ag,0.392),am);a.receiveShadow=true;scene.add(a);
+    var wm=new THREE.MeshBasicMaterial({color:0xf3f3ee});
+    for(var k=0;k<44;k++){var a0=k/44*Math.PI*2,dg=new THREE.RingGeometry(RO-0.42,RO-0.26,4,1,a0,Math.PI*2/44*0.55);dg.rotateX(-Math.PI/2);scene.add(new THREE.Mesh(lay(dg,0.406),wm))}
+    var cg=new THREE.RingGeometry(RI+0.35,RI+0.5,96);cg.rotateX(-Math.PI/2);scene.add(new THREE.Mesh(lay(cg,0.406),wm));
+    var h0=roadH(cx,cz)+0.38,curb=cyl(RI,RI+0.12,0.32,mConc,cx,h0+0.16,cz,64);curb.receiveShadow=true;add(curb);
+    var gr=new THREE.Mesh(new THREE.CircleGeometry(RI-0.18,64),M(0x5e8f3a,{roughness:1}));gr.rotation.x=-Math.PI/2;gr.position.set(cx,h0+0.33,cz);gr.receiveShadow=true;add(gr);
+    var st=new THREE.Mesh(new THREE.IcosahedronGeometry(1.1,2),M(0xf1efe8,{roughness:.55}));st.scale.set(1.25,1.55,0.85);st.position.set(cx,h0+1.55,cz);st.rotation.y=0.6;st.castShadow=true;add(st);
+    var pl=canv(512,128,function(x,w,h){x.fillStyle='#16252e';x.fillRect(0,0,w,h);x.fillStyle='#f2f4f4';x.textAlign='center';x.font='400 64px "Golos Text", Arial, sans-serif';x.fillText('WHITESTONE',w/2,86)});
+    var pq=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.4,0.06),new THREE.MeshStandardMaterial({map:pl,roughness:.5}));pq.position.set(cx+0.2,h0+0.55,cz+1.25);pq.rotation.x=-0.5;add(pq);
+    for(k=0;k<7;k++){var an=k/7*Math.PI*2+0.3,bu=mesh(new THREE.SphereGeometry(0.42+0.12*(k%3),14,10),M(0x4f7d33,{roughness:.9}),cx+Math.cos(an)*3.3,h0+0.55,cz+Math.sin(an)*3.3);bu.scale.y=0.75;add(bu)}})();
+  setTimeout(function(){scene.children.forEach(function(o){if(!o.isGroup||movers2.some(function(m){return m.c===o}))return;var d=Math.hypot(o.position.x-RBT.x,o.position.z-RBT.z);if(d>0.5&&d<16)o.visible=false})},0);
   RT={nearest:nearest,path:path,lane:LANE,gateIn:nearest(RING,-64,19),laneEnd:nearest(RING,-44,-80),kpp:nearest(OUTR,-197,18),south:nearest(RING,100,37)};
   /* маршрут грузовика внутри: от КПП-1 до въезда КПП-2 (западные ворота) */
   RT.inToGate=function(){return LANE.slice().concat(path(RING,RT.laneEnd,RT.gateIn).slice(1),[[-55,19]])};
@@ -1568,41 +1631,50 @@ var CREW={x:-221,z:49.5};
   var blk=M(0x0b0c0e,{roughness:.22,metalness:.65}),mat=M(0x17191b,{roughness:.8}),chrome=M(0x2a2d30,{roughness:.3,metalness:.8}),
       glass=new THREE.MeshStandardMaterial({color:0x07090b,roughness:.05,metalness:.6,transparent:true,opacity:.8}),canvas=M(0x7d7a52,{roughness:.9}),shell=M(0x2b2f33,{roughness:.5,metalness:.2});
   var g=new THREE.Group();
-  /* колёса: внедорожная резина, чёрные диски */
-  var prof=[[0.27,-0.19],[0.4,-0.19],[0.46,-0.17],[0.49,-0.12],[0.5,0],[0.49,0.12],[0.46,0.17],[0.4,0.19],[0.27,0.19]].map(function(p){return new THREE.Vector2(p[0],p[1])});
+  /* колёса: внедорожная резина с гладким профилем, диски с бедлок-кольцом, расширители арок */
+  var prof=[[0.27,-0.2],[0.38,-0.2],[0.44,-0.19],[0.475,-0.165],[0.495,-0.12],[0.505,-0.06],[0.508,0],[0.505,0.06],[0.495,0.12],[0.475,0.165],[0.44,0.19],[0.38,0.2],[0.27,0.2]].map(function(p){return new THREE.Vector2(p[0],p[1])});
+  var rimM=M(0x141517,{roughness:.3,metalness:.85}),flM=M(0x111214,{roughness:.75});
   [[1.85,0.95],[1.85,-0.95],[-1.75,0.95],[-1.75,-0.95]].forEach(function(w){var s=w[1]>0?1:-1;
-    var t=new THREE.Mesh(new THREE.LatheGeometry(prof,28),mTire);t.rotation.x=Math.PI/2;t.position.set(w[0],0.5,w[1]);t.castShadow=true;g.add(t);
-    for(var k=0;k<16;k++){var a=k/16*Math.PI*2,b=box(0.12,0.06,0.36,mTire,w[0]+Math.cos(a)*0.5,0.5+Math.sin(a)*0.5,w[1]);b.rotation.z=a+Math.PI/2;b.castShadow=false;g.add(b)}
-    var r=cyl(0.28,0.28,0.39,M(0x111214,{roughness:.4,metalness:.7}),w[0],0.5,w[1],20);r.rotation.x=Math.PI/2;g.add(r);
-    for(var k2=0;k2<6;k2++){var a2=k2/6*Math.PI*2,sp=box(0.04,0.22,0.04,chrome,w[0]+Math.cos(a2)*0.13,0.5+Math.sin(a2)*0.13,w[1]+s*0.2);sp.rotation.z=a2+Math.PI/2;g.add(sp)}
-    g.add(box(1.25,0.12,0.22,mat,w[0],1.08,w[1]+s*0.08))});
-  /* рама, кузов, капот, кабина */
+    var t=new THREE.Mesh(new THREE.LatheGeometry(prof,64),mTire);t.rotation.x=Math.PI/2;t.position.set(w[0],0.5,w[1]);t.castShadow=true;g.add(t);
+    for(var k=0;k<30;k++){var a=k/30*Math.PI*2,b=box(0.07,0.03,0.3,mTire,w[0]+Math.cos(a)*0.5,0.5+Math.sin(a)*0.5,w[1]);b.rotation.z=a+Math.PI/2;b.castShadow=false;g.add(b)}
+    var r=cyl(0.29,0.29,0.38,rimM,w[0],0.5,w[1],40);r.rotation.x=Math.PI/2;g.add(r);
+    var bl=new THREE.Mesh(new THREE.TorusGeometry(0.285,0.022,8,40),chrome);bl.position.set(w[0],0.5,w[1]+s*0.195);g.add(bl);
+    for(var k2=0;k2<6;k2++){var a2=k2/6*Math.PI*2,sp=box(0.05,0.2,0.04,rimM,w[0]+Math.cos(a2)*0.13,0.5+Math.sin(a2)*0.13,w[1]+s*0.19);sp.rotation.z=a2+Math.PI/2;g.add(sp)}
+    g.add(cyl(0.07,0.07,0.04,chrome,w[0],0.5,w[1]+s*0.2,16).rotateX?(function(){var c=cyl(0.07,0.07,0.04,chrome,w[0],0.5,w[1]+s*0.205,16);c.rotation.x=Math.PI/2;return c})():null);
+    var fl=new THREE.Mesh(new THREE.TorusGeometry(0.68,0.075,10,32,Math.PI),flM);fl.position.set(w[0],0.88,s*1.0);fl.scale.z=1.6;g.add(fl)});
   g.add(box(5.4,0.25,1.2,mat,0,0.72,0));
-  g.add(box(5.9,0.62,2.04,blk,0,1.16,0));
-  var hs=new THREE.Shape();hs.moveTo(1.35,1.47);hs.lineTo(2.95,1.47);hs.lineTo(2.95,1.62);hs.lineTo(1.35,1.7);hs.lineTo(1.35,1.47);
-  var hood=new THREE.Mesh(new THREE.ExtrudeGeometry(hs,{depth:1.96,bevelEnabled:true,bevelThickness:0.04,bevelSize:0.03,bevelSegments:2}),blk);hood.position.z=-0.98;g.add(hood);
-  var cs=new THREE.Shape();cs.moveTo(-0.75,1.47);cs.lineTo(1.4,1.47);cs.lineTo(0.85,2.3);cs.lineTo(-0.7,2.3);cs.lineTo(-0.75,1.47);
-  var cab=new THREE.Mesh(new THREE.ExtrudeGeometry(cs,{depth:1.9,bevelEnabled:true,bevelThickness:0.05,bevelSize:0.04,bevelSegments:2}),blk);cab.position.z=-0.95;g.add(cab);
-  var ws=new THREE.Shape();ws.moveTo(-0.6,1.62);ws.lineTo(1.27,1.62);ws.lineTo(0.8,2.2);ws.lineTo(-0.6,2.2);ws.lineTo(-0.6,1.62);
+  /* кузов одним гладким силуэтом: бампер, капот, лобовое, крыша, задняя стенка, борта кузова; вырезы арок */
+  var bs=new THREE.Shape(),pl=[[3.1,0.88],[3.14,1.28],[3.02,1.6],[1.42,1.72],[0.85,2.3],[-0.72,2.3],[-0.78,1.9],[-2.94,1.9],[-3.0,1.25],[-2.96,0.88]],rc=0.12;
+  bs.moveTo(-2.9,0.88);[-1.75,1.85].forEach(function(x){bs.lineTo(x-0.66,0.88);bs.absarc(x,0.88,0.66,Math.PI,0,true)});bs.lineTo(3.06,0.88);
+  for(var q=0;q<pl.length;q++){var c0=pl[q],pv=pl[(q-1+pl.length)%pl.length],nx=pl[(q+1)%pl.length],l1=Math.hypot(c0[0]-pv[0],c0[1]-pv[1]),l2=Math.hypot(nx[0]-c0[0],nx[1]-c0[1]),r1=Math.min(rc,l1*0.45),r2=Math.min(rc,l2*0.45);
+    bs.lineTo(c0[0]+(pv[0]-c0[0])/l1*r1,c0[1]+(pv[1]-c0[1])/l1*r1);bs.quadraticCurveTo(c0[0],c0[1],c0[0]+(nx[0]-c0[0])/l2*r2,c0[1]+(nx[1]-c0[1])/l2*r2)}
+  bs.lineTo(-2.9,0.88);
+  var bgeo=new THREE.ExtrudeGeometry(bs,{depth:1.86,bevelEnabled:true,bevelThickness:0.09,bevelSize:0.08,bevelSegments:5,curveSegments:24});bgeo.translate(0,0,-0.93);
+  g.add(new THREE.Mesh(smoothN(bgeo,48),blk));
+  /* кузов-платформа: тёмный вкладыш сверху, борта */
+  g.add(box(2.1,0.04,1.82,mat,-1.86,1.915,0));
+  /* стёкла: боковые, лобовое, заднее; стойки и швы дверей */
+  var ws=new THREE.Shape();ws.moveTo(-0.66,1.84);ws.lineTo(1.28,1.8);ws.lineTo(0.84,2.22);ws.lineTo(-0.62,2.22);ws.lineTo(-0.66,1.84);
   var win=new THREE.Mesh(new THREE.ExtrudeGeometry(ws,{depth:2.06,bevelEnabled:false}),glass);win.position.z=-1.03;g.add(win);
-  g.add(box(0.05,0.62,0.06,blk,0.33,1.92,1.03));g.add(box(0.05,0.62,0.06,blk,0.33,1.92,-1.03));
-  /* кузов-платформа (борта) */
-  [[-1.83,1.0],[-1.83,-1.0]].forEach(function(b){g.add(box(2.15,0.42,0.07,blk,b[0],1.66,b[1]))});g.add(box(0.07,0.42,2.04,blk,-2.92,1.66,0));g.add(box(2.1,0.05,1.9,mat,-1.83,1.47,0));
+  glassEdge(g,[1.42,1.72],[0.86,2.28],1.7);glassEdge(g,[-0.73,2.27],[-0.78,1.93],1.6);
+  [-1,1].forEach(function(s){g.add(box(0.07,0.44,0.03,blk,0.15,2.02,s*1.03));[1.32,0.15,-0.7].forEach(function(x){g.add(box(0.012,0.85,0.012,mat,x,1.34,s*1.022))})});
   /* решётка радиатора, бампер с лебёдкой, фары, светодиодная балка */
-  g.add(box(0.06,0.5,1.6,mat,2.97,1.25,0));for(var k3=0;k3<4;k3++)g.add(box(0.07,0.04,1.5,chrome,2.99,1.06+k3*0.13,0));
-  g.add(box(0.3,0.32,2.2,mat,3.05,0.86,0));g.add(cyl(0.12,0.12,0.6,chrome,3.12,0.86,0,12).rotateX?(function(){var w=cyl(0.12,0.12,0.6,chrome,3.12,0.86,0,12);w.rotation.x=Math.PI/2;return w})():null);
-  [-0.72,0.72].forEach(function(z){g.add(mesh(new THREE.BoxGeometry(0.05,0.14,0.36),new THREE.MeshBasicMaterial({color:0xeaf6ff}),3.0,1.42,z,false));g.add(mesh(new THREE.BoxGeometry(0.05,0.14,0.22),new THREE.MeshBasicMaterial({color:0xb31212}),-2.96,1.5,z*1.2,false))});
-  g.add(box(0.12,0.1,1.5,mat,0.88,2.36,0));g.add(mesh(new THREE.BoxGeometry(0.04,0.06,1.4),new THREE.MeshBasicMaterial({color:0xf2fbff}),0.95,2.36,0,false));
+  g.add(box(0.06,0.42,1.5,mat,3.08,1.3,0));for(var k3=0;k3<5;k3++)g.add(box(0.07,0.03,1.42,chrome,3.11,1.13+k3*0.085,0));
+  g.add(rbox(0.32,0.3,2.24,0.06,mat,3.12,0.92,0));var wn=cyl(0.12,0.12,0.6,chrome,3.24,0.92,0,16);wn.rotation.x=Math.PI/2;g.add(wn);
+  [-0.68,0.68].forEach(function(z){g.add(mesh(new THREE.BoxGeometry(0.05,0.1,0.38),new THREE.MeshBasicMaterial({color:0xeaf6ff}),3.06,1.5,z,false));g.add(mesh(new THREE.BoxGeometry(0.05,0.03,0.4),new THREE.MeshBasicMaterial({color:0xffb347}),3.07,1.43,z,false));
+    g.add(mesh(new THREE.BoxGeometry(0.05,0.32,0.14),new THREE.MeshBasicMaterial({color:0xb31212}),-3.0,1.55,z*1.25,false))});
+  g.add(box(0.12,0.1,1.5,mat,0.9,2.38,0));g.add(mesh(new THREE.BoxGeometry(0.04,0.06,1.4),new THREE.MeshBasicMaterial({color:0xf2fbff}),0.97,2.38,0,false));
   /* шноркель, зеркала, подножки */
-  var sn=cyl(0.06,0.06,1.0,mat,1.3,1.9,1.06,10);g.add(sn);g.add(box(0.2,0.12,0.14,mat,1.32,2.42,1.06));
-  [-1,1].forEach(function(s){g.add(box(0.12,0.2,0.3,blk,1.15,1.95,s*1.15));g.add(box(2.4,0.06,0.25,mat,0.3,0.78,s*1.12))});
-  /* багажник и палатка: жёсткий корпус открыт, тент натянут */
-  g.add(box(2.6,0.06,0.06,mat,-0.9,2.36,0.85));g.add(box(2.6,0.06,0.06,mat,-0.9,2.36,-0.85));[-2.05,0.25].forEach(function(x){g.add(box(0.06,0.25,1.8,mat,x,2.38,0))});
-  g.add(box(2.3,0.16,1.55,shell,-0.95,2.52,0));
-  var lid=new THREE.Group();lid.position.set(0.18,2.6,0);lid.rotation.z=0.62;lid.add(box(2.3,0.08,1.55,shell,-1.15,0,0));g.add(lid);
-  var tri=new THREE.Shape();tri.moveTo(0.18,2.6);tri.lineTo(-2.1,2.6);tri.lineTo(0.18-Math.cos(0.62)*2.3,2.6+Math.sin(0.62)*2.3);tri.lineTo(0.18,2.6);
-  [-0.76,0.76].forEach(function(z){var m=new THREE.Mesh(new THREE.ShapeGeometry(tri),new THREE.MeshStandardMaterial({color:0x7d7a52,roughness:.9,side:THREE.DoubleSide}));m.position.z=z;g.add(m)});
-  var back=new THREE.Mesh(new THREE.PlaneGeometry(1.52,1.3),new THREE.MeshStandardMaterial({color:0x6f6c47,roughness:.9,side:THREE.DoubleSide}));back.position.set(-2.05,3.1,0);back.rotation.y=Math.PI/2;back.rotation.x=0.18;g.add(back);
+  var sn=cyl(0.06,0.06,1.0,mat,1.3,1.9,1.08,12);g.add(sn);g.add(box(0.2,0.12,0.14,mat,1.32,2.42,1.08));
+  [-1,1].forEach(function(s){g.add(rbox(0.26,0.2,0.08,0.03,blk,1.2,1.98,s*1.2));g.add(box(0.06,0.04,0.2,mat,1.25,1.9,s*1.1));g.add(box(2.4,0.06,0.25,mat,0.3,0.8,s*1.13))});
+  /* багажник и палатка: жёсткий корпус открыт, тент натянут, окна с москитной сеткой */
+  g.add(box(2.6,0.06,0.06,mat,-0.9,2.38,0.85));g.add(box(2.6,0.06,0.06,mat,-0.9,2.38,-0.85));[-2.05,0.25].forEach(function(x){g.add(box(0.06,0.25,1.8,mat,x,2.4,0))});
+  g.add(rbox(2.3,0.18,1.6,0.06,shell,-0.95,2.53,0));
+  var lid=new THREE.Group();lid.position.set(0.18,2.62,0);lid.rotation.z=0.62;lid.add(rbox(2.3,0.09,1.62,0.04,shell,-1.15,0,0));g.add(lid);
+  var tri=new THREE.Shape();tri.moveTo(0.12,2.62);tri.lineTo(-2.06,2.62);tri.lineTo(0.12-Math.cos(0.62)*2.2,2.62+Math.sin(0.62)*2.2);tri.lineTo(0.12,2.62);
+  var tg=new THREE.ExtrudeGeometry(tri,{depth:1.48,bevelEnabled:true,bevelThickness:0.03,bevelSize:0.03,bevelSegments:2});tg.translate(0,0,-0.74);g.add(new THREE.Mesh(tg,M(0x6b6848,{roughness:.95})));
+  var net=M(0x23241d,{roughness:.9});[-1,1].forEach(function(s){var wnd=new THREE.Mesh(new THREE.PlaneGeometry(0.7,0.42),net);wnd.position.set(-1.05,2.95,s*0.785);if(s<0)wnd.rotation.y=Math.PI;g.add(wnd)});
+  [-0.5,0.5].forEach(function(z){var st=box(0.03,1.45,0.03,mat,-2.02,1.95,z);st.rotation.z=-0.05;g.add(st)});
   [-0.35,0.35].forEach(function(z){var r=box(0.05,2.6,0.05,M(0xb8bec2,{metalness:.7,roughness:.3}),-2.5,1.3,z);r.rotation.z=0.33;g.add(r)});for(var r2=0;r2<6;r2++){var rung=box(0.05,0.04,0.74,M(0xb8bec2,{metalness:.7,roughness:.3}),-2.12-r2*0.14,0.3+r2*0.42,0);g.add(rung)}
   var dc=canv(1024,224,function(x,w,h){x.clearRect(0,0,w,h);x.fillStyle='#19a89c';x.fillRect(80,150,w-160,6);x.fillStyle='#f2f4f4';x.textAlign='center';x.font='400 112px "Golos Text", Arial, sans-serif';
     var t='WHITESTONE',sp=18,tw=0,i;for(i=0;i<t.length;i++)tw+=x.measureText(t[i]).width+sp;var cx=(w-tw)/2;for(i=0;i<t.length;i++){var cw=x.measureText(t[i]).width;x.fillText(t[i],cx+cw/2,124);cx+=cw+sp}
@@ -1611,7 +1683,7 @@ var CREW={x:-221,z:49.5};
   [1,-1].forEach(function(s){var p=new THREE.Mesh(new THREE.PlaneGeometry(1.7,0.37),dm);p.position.set(0.3,1.2,s*1.035);if(s<0)p.rotation.y=Math.PI;g.add(p);
     var p2=new THREE.Mesh(new THREE.PlaneGeometry(1.6,0.35),dm);p2.position.set(-1.85,1.22,s*1.035);if(s<0)p2.rotation.y=Math.PI;g.add(p2)});
   g.traverse(function(o){if(o.isMesh){o.castShadow=!o.material.transparent;o.receiveShadow=true}});
-  g.position.set(-225.5,0.12,49.5);g.rotation.y=0.12;add(g);
+  g.position.set(-225.5,0.12,49.5);g.rotation.y=0.12;add(g);shine(g);
   /* ---- бригада: четверо в фирменной спецодежде (комбинезон + сигнальный жилет), у всех каски, из-под касок — чёрные волосы; один плотнее ---- */
   var skin=[0xc8956c,0xb98560,0xd2a07a,0xa97752],hats=[0xf4f6f6,0xf1c40f,0xf4f6f6,0xff7a1a],vest=[0xff7a1a,0xd9f23a,0xff7a1a,0xd9f23a],wide=[1,1.32,1,1];
   var navy=M(0x1d2f4f,{roughness:.7}),refl=M(0xe8eef0,{roughness:.25,metalness:.5}),boot=M(0x2a1d14,{roughness:.75}),sole=M(0x111111),glove=M(0x3a3f44,{roughness:.8}),hairM=M(0x0d0b0a,{roughness:.9}),
@@ -1823,7 +1895,7 @@ var bA=document.getElementById('bArch'),bB=document.getElementById('bBox'),bG=do
 bA.onclick=function(){hState.arch=true;setP(bA,1);setP(bB,0);buildHangar()};bB.onclick=function(){hState.arch=false;setP(bA,0);setP(bB,1);buildHangar()};
 bG.onclick=function(){hState.glass=!hState.glass;setP(bG,hState.glass);buildHangar()};bS.onclick=function(){hState.solar=!hState.solar;setP(bS,hState.solar);buildHangar()};
 var lb=document.getElementById('bLabels');lb.onclick=function(){var v=lb.getAttribute('aria-pressed')!=='true';setP(lb,v);tags.forEach(function(s){s.visible=v})};
-var gd=document.getElementById('bGold'),bN=document.getElementById('bNight');
+var gd=document.getElementById('bGold'),bN=document.getElementById('bNight');window.__nightOn=false;
 /* ночь: строится один раз при первом включении */
 var NIGHT=null;
 function nightBuild(){NIGHT={g:new THREE.Group(),hl:[]};var pos=[],i;
@@ -1836,15 +1908,21 @@ function nightBuild(){NIGHT={g:new THREE.Group(),hl:[]};var pos=[],i;
   var tex=new THREE.CanvasTexture(c),pm=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}),
       hm=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}),pg=new THREE.PlaneGeometry(14,14),v=new THREE.Vector3();pg.rotateX(-Math.PI/2);
   scene.updateMatrixWorld(true);var lamps=[];
-  scene.traverse(function(o){if(o.isMesh&&o.material&&o.material.isMeshBasicMaterial&&o.material.color&&o.material.color.getHex()===0xfff3c8){o.getWorldPosition(v);lamps.push(v.clone())}});
+  scene.traverse(function(o){if(o.isMesh&&o.material&&o.material.isMeshBasicMaterial&&o.material.color&&o.material.color.getHex()===0xfff3c8&&(!o.parent||o.parent.visible)){o.getWorldPosition(v);lamps.push(v.clone())}});
   lamps.forEach(function(p){var d=new THREE.Mesh(pg,pm);d.position.set(p.x,Math.max(terrainH(p.x,p.z),0)+0.42,p.z);d.renderOrder=2;NIGHT.g.add(d);
     var h=new THREE.Sprite(hm);h.position.copy(p);h.scale.set(2.6,2.6,1);NIGHT.g.add(h)});
   /* фары: два световых пятна у передних фонарей каждой машины */
   var fm=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,color:0xf4f8ff});
+  /* луч фар: яркий у машины, гаснет к дальнему краю и по бокам */
+  var bc=document.createElement('canvas');bc.width=64;bc.height=256;var bx=bc.getContext('2d'),lg=bx.createLinearGradient(0,256,0,0);
+  lg.addColorStop(0,'rgba(255,250,235,0.95)');lg.addColorStop(0.3,'rgba(255,248,228,0.45)');lg.addColorStop(1,'rgba(255,245,220,0)');bx.fillStyle=lg;bx.fillRect(0,0,64,256);
+  bx.globalCompositeOperation='destination-in';var hg=bx.createLinearGradient(0,0,64,0);hg.addColorStop(0,'rgba(0,0,0,0)');hg.addColorStop(0.5,'rgba(0,0,0,1)');hg.addColorStop(1,'rgba(0,0,0,0)');bx.fillStyle=hg;bx.fillRect(0,0,64,256);
+  var beamM=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(bc),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
   movers2.forEach(function(m){var semi=!!m.c.userData.tr,P=CARP[m.kind],fx=semi?4.75:(P?P.L[1]+0.12:2.4),fy=semi?1.15:(P&&P.bus?0.95:0.75),fz=semi?0.95:(P?P.w/2-0.3:0.7);
-    [-1,1].forEach(function(sd){var sp=new THREE.Sprite(fm);sp.position.set(fx,fy,sd*fz);sp.scale.set(1.5,1.5,1);sp.visible=false;m.c.add(sp);NIGHT.hl.push(sp)})});
+    [-1,1].forEach(function(sd){var sp=new THREE.Sprite(fm);sp.position.set(fx,fy,sd*fz);sp.scale.set(2.2,2.2,1);sp.visible=false;m.c.add(sp);NIGHT.hl.push(sp)});
+    var bg=new THREE.PlaneGeometry(semi?7:5.5,semi?30:24);bg.rotateX(-Math.PI/2);bg.rotateY(-Math.PI/2);bg.translate(fx+(semi?15:12)-0.3,0.06,0);var bm2=new THREE.Mesh(bg,beamM);bm2.visible=false;bm2.renderOrder=3;m.c.add(bm2);NIGHT.hl.push(bm2)});
   scene.add(NIGHT.g)}
-function setNight(on){if(on&&!NIGHT)nightBuild();if(!NIGHT)return;NIGHT.g.visible=on;NIGHT.hl.forEach(function(h){h.visible=on});
+function setNight(on){NIGHT_ON=on;ENVM.forEach(function(m){m.envMapIntensity=on?0.12:(m.metalness>0.5?1.0:0.6)});if(on&&!NIGHT)nightBuild();if(!NIGHT)return;NIGHT.g.visible=on;NIGHT.hl.forEach(function(h){h.visible=on});
   if(on){setSun(40,205,0x8aa2d8,0x02060f,0x0d1828,0x22324f,0x070d18,0.62);sun.intensity=0.24;hemi.intensity=0.24;hemi.groundColor.set(0x0b120a);skyU.glow.value.set(0x9aa6c8);NIGHT.moon.position.copy(sunDir).multiplyScalar(2900)}
   else{sun.intensity=1.15;hemi.intensity=0.55;hemi.groundColor.set(0x4f7a30);skyU.glow.value.set(0xfff2c8)}}
 function lightMode(mode){setP(gd,mode==='gold');setP(bN,mode==='night');setNight(mode==='night');if(mode==='gold')goldLight();else if(mode==='day')dayLight()}
