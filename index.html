@@ -71,6 +71,8 @@ button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);bord
     <button id="bLabels" aria-pressed="false">Labels</button>
     <button id="bGold" aria-pressed="false">Golden hour</button>
     <button id="bLite" aria-pressed="false">Lite graphics</button>
+    <button id="bNight" aria-pressed="false">Night</button>
+    <button id="bLite" aria-pressed="false">Lite graphics</button>
     <button id="bHide">Hide panel</button></div></div>
   <p class="note" id="touchHint" hidden>One finger: rotate · Pinch: zoom · Two fingers: move. Tap the scene to stop the flyover.</p>
   <p class="note">Concept sketch based on the site plan: dimensions and equipment are indicative. Flags and logos are simplified; use approved artwork for official materials.</p>
@@ -498,7 +500,7 @@ P=G(64,7);(function(){
 (function(){for(var x=-50;x<=46;x+=14){var g=new THREE.Group();g.add(cyl(0.07,0.1,7,mMetal,0,3.5,0,8));var a=box(1.6,0.08,0.08,mMetal,0.7,7,0);g.add(a);g.add(mesh(new THREE.BoxGeometry(0.6,0.12,0.3),new THREE.MeshBasicMaterial({color:0xfff3c8}),1.4,6.95,0,false));g.position.set(x,0.3,15.4);scene.add(g)}})();
 
 /* ---------- машины и люди ---------- */
-function wheel(r,x,z){var w=cyl(r,r,0.3,M(0x1c1f22,{roughness:.8}),x,r,z,16);w.rotation.x=Math.PI/2;return w}
+function wheel(r,x,z){var w=cyl(r,r,0.3,M(0x1c1f22,{roughness:.8}),x,r,z,36);w.rotation.x=Math.PI/2;return w}
 /* ---------- тягачи в стиле Tesla Semi: тонированный стеклянный фонарь, водитель по центру, маячки, детальные колёса ---------- */
 var _cab=null,_cabM={},_whl={},_tankM=null,_dT=null;
 var mCabGlass=new THREE.MeshStandardMaterial({color:0x061017,roughness:.05,metalness:.55,transparent:true,opacity:.56,depthWrite:false,side:THREE.DoubleSide});
@@ -507,26 +509,39 @@ var mSkin=M(0xc8956c,{roughness:.7}),mVest=M(0xff7a1a,{roughness:.6}),mRefl=M(0x
 function ns(o){o.userData.ns=1;return o}
 function cabGeo(){if(_cab)return _cab;
   var lo=new THREE.Shape();lo.moveTo(0,0.55);lo.lineTo(2.75,0.55);lo.quadraticCurveTo(3.15,0.62,3.12,1.05);lo.quadraticCurveTo(3.1,1.3,3.0,1.38);lo.lineTo(2.57,1.95);lo.lineTo(0,1.95);lo.lineTo(0,0.55);
-  var body=new THREE.ExtrudeGeometry(lo,{depth:2.2,bevelEnabled:true,bevelThickness:0.12,bevelSize:0.1,bevelSegments:3,curveSegments:10});body.translate(0,0,-1.1);
+  var body=new THREE.ExtrudeGeometry(lo,{depth:2.2,bevelEnabled:true,bevelThickness:0.12,bevelSize:0.1,bevelSegments:6,curveSegments:28});body.translate(0,0,-1.1);
   var gl=new THREE.Shape();gl.moveTo(0.28,1.95);gl.lineTo(2.57,1.95);gl.lineTo(1.66,3.2);gl.lineTo(0.28,3.2);gl.lineTo(0.28,1.95);
   var glass=new THREE.ExtrudeGeometry(gl,{depth:2.42,bevelEnabled:false});glass.translate(0,0,-1.21);
   var rf=new THREE.Shape();rf.moveTo(0,3.18);rf.lineTo(1.72,3.18);rf.quadraticCurveTo(1.5,3.42,1.1,3.42);rf.lineTo(0.12,3.42);rf.quadraticCurveTo(0,3.42,0,3.3);rf.lineTo(0,3.18);
-  var roof=new THREE.ExtrudeGeometry(rf,{depth:2.26,bevelEnabled:true,bevelThickness:0.08,bevelSize:0.05,bevelSegments:2,curveSegments:8});roof.translate(0,0,-1.13);
-  _cab={body:body,glass:glass,roof:roof};return _cab}
+  var roof=new THREE.ExtrudeGeometry(rf,{depth:2.26,bevelEnabled:true,bevelThickness:0.08,bevelSize:0.05,bevelSegments:5,curveSegments:20});roof.translate(0,0,-1.13);
+  _cab={body:smoothN(body,50),glass:glass,roof:smoothN(roof,50)};return _cab}
+/* сглаженные нормали: соседние грани с углом меньше crease° считаются одной гладкой поверхностью */
+function smoothN(g,deg){g=g.index?g.toNonIndexed():g;var p=g.attributes.position.array,n=p.length/3,fn=new Float32Array(n*3),cs=Math.cos((deg||45)*Math.PI/180),map={},i,a,b;
+  for(i=0;i<n;i+=3){var ax=p[i*3],ay=p[i*3+1],az=p[i*3+2],ux=p[i*3+3]-ax,uy=p[i*3+4]-ay,uz=p[i*3+5]-az,vx=p[i*3+6]-ax,vy=p[i*3+7]-ay,vz=p[i*3+8]-az,
+    cx=uy*vz-uz*vy,cy=uz*vx-ux*vz,cz=ux*vy-uy*vx,l=Math.hypot(cx,cy,cz)||1;for(a=0;a<3;a++){fn[(i+a)*3]=cx/l;fn[(i+a)*3+1]=cy/l;fn[(i+a)*3+2]=cz/l}}
+  for(i=0;i<n;i++){var key=Math.round(p[i*3]*1e3)+'_'+Math.round(p[i*3+1]*1e3)+'_'+Math.round(p[i*3+2]*1e3);(map[key]||(map[key]=[])).push(i)}
+  var N=new Float32Array(n*3);for(var key2 in map){var Lk=map[key2];for(a=0;a<Lk.length;a++){var ia=Lk[a],sx=0,sy=0,sz=0;
+    for(b=0;b<Lk.length;b++){var ib=Lk[b];if(fn[ia*3]*fn[ib*3]+fn[ia*3+1]*fn[ib*3+1]+fn[ia*3+2]*fn[ib*3+2]>=cs){sx+=fn[ib*3];sy+=fn[ib*3+1];sz+=fn[ib*3+2]}}
+    var l2=Math.hypot(sx,sy,sz)||1;N[ia*3]=sx/l2;N[ia*3+1]=sy/l2;N[ia*3+2]=sz/l2}}
+  g.setAttribute('normal',new THREE.BufferAttribute(N,3));return g}
+/* ящик со скруглёнными рёбрами вдоль длины (фургон) */
+function rbox(w,h,d,r,mat,x,y,z){var sh=new THREE.Shape(),hw=d/2-0.05,hh=h/2-0.05;sh.moveTo(-hw+r,-hh);sh.lineTo(hw-r,-hh);sh.quadraticCurveTo(hw,-hh,hw,-hh+r);sh.lineTo(hw,hh-r);sh.quadraticCurveTo(hw,hh,hw-r,hh);
+  sh.lineTo(-hw+r,hh);sh.quadraticCurveTo(-hw,hh,-hw,hh-r);sh.lineTo(-hw,-hh+r);sh.quadraticCurveTo(-hw,-hh,-hw+r,-hh);
+  var g=new THREE.ExtrudeGeometry(sh,{depth:w-0.1,bevelEnabled:true,bevelThickness:0.05,bevelSize:0.05,bevelSegments:3,curveSegments:10});g.translate(0,0,-(w-0.1)/2);g.rotateY(Math.PI/2);
+  var o=new THREE.Mesh(smoothN(g,45),mat);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;return o}
 function mergeGeos(list){var n=0;list=list.map(function(g){g=g.index?g.toNonIndexed():g;n+=g.attributes.position.count;return g});
   var P=new Float32Array(n*3),N=new Float32Array(n*3),o=0;list.forEach(function(g){P.set(g.attributes.position.array,o*3);N.set(g.attributes.normal.array,o*3);o+=g.attributes.position.count});
   var m=new THREE.BufferGeometry();m.setAttribute('position',new THREE.BufferAttribute(P,3));m.setAttribute('normal',new THREE.BufferAttribute(N,3));return m}
 /* колёса: шина с профилем (боковина и протектор), диск, ступица и гайки; по 2 колеса на ось */
 function wheelGeos(xs){var key=xs.join(',');if(_whl[key])return _whl[key];
-  var prof=[[0.29,-0.17],[0.42,-0.17],[0.485,-0.155],[0.515,-0.11],[0.525,-0.04],[0.525,0.04],[0.515,0.11],[0.485,0.155],[0.42,0.17],[0.29,0.17]].map(function(p){return new THREE.Vector2(p[0],p[1])});
+  var prof=[[0.29,-0.17],[0.4,-0.17],[0.455,-0.165],[0.49,-0.152],[0.512,-0.128],[0.523,-0.095],[0.527,-0.045],[0.527,0.045],[0.523,0.095],[0.512,0.128],[0.49,0.152],[0.455,0.165],[0.4,0.17],[0.29,0.17]].map(function(p){return new THREE.Vector2(p[0],p[1])});
   var T=[],R=[],H=[];
-  xs.forEach(function(x){[1.08,-1.08].forEach(function(z){var s=z>0?1:-1,y=0.525;
-    var t=new THREE.LatheGeometry(prof,30);t.rotateX(Math.PI/2);t.translate(x,y,z);T.push(t);
-    for(var q=0;q<20;q++){var a=q/20*Math.PI*2,tr=new THREE.BoxGeometry(0.06,0.03,0.3);tr.rotateZ(a);tr.translate(x+Math.cos(a+Math.PI/2)*0.525,y+Math.sin(a+Math.PI/2)*0.525,z);T.push(tr)}
-    var rim=new THREE.CylinderGeometry(0.3,0.3,0.31,26);rim.rotateX(Math.PI/2);rim.translate(x,y,z);R.push(rim);
-    var dish=new THREE.CylinderGeometry(0.2,0.25,0.06,22);dish.rotateX(Math.PI/2);dish.translate(x,y,z+s*0.165);R.push(dish);
-    var hub=new THREE.CylinderGeometry(0.085,0.11,0.12,14);hub.rotateX(Math.PI/2);hub.translate(x,y,z+s*0.2);H.push(hub);
-    for(var n=0;n<8;n++){var b=n/8*Math.PI*2,lg=new THREE.CylinderGeometry(0.022,0.022,0.07,6);lg.rotateX(Math.PI/2);lg.translate(x+Math.cos(b)*0.15,y+Math.sin(b)*0.15,z+s*0.19);H.push(lg)}})});
+  xs.forEach(function(x){[0.97,-0.97].forEach(function(z){var s=z>0?1:-1,y=0.525;
+    var t=new THREE.LatheGeometry(prof,64);t.rotateX(Math.PI/2);t.translate(x,y,z);T.push(t);
+    var rim=new THREE.CylinderGeometry(0.3,0.3,0.31,48);rim.rotateX(Math.PI/2);rim.translate(x,y,z);R.push(rim);
+    var dish=new THREE.CylinderGeometry(0.2,0.25,0.06,40);dish.rotateX(Math.PI/2);dish.translate(x,y,z+s*0.165);R.push(dish);
+    var hub=new THREE.CylinderGeometry(0.085,0.11,0.12,24);hub.rotateX(Math.PI/2);hub.translate(x,y,z+s*0.2);H.push(hub);
+    for(var n=0;n<8;n++){var b=n/8*Math.PI*2,lg=new THREE.CylinderGeometry(0.022,0.022,0.07,10);lg.rotateX(Math.PI/2);lg.translate(x+Math.cos(b)*0.15,y+Math.sin(b)*0.15,z+s*0.19);H.push(lg)}})});
   return _whl[key]={t:mergeGeos(T),r:mergeGeos(R),h:mergeGeos(H)}}
 function addWheels(g,xs){var w=wheelGeos(xs),a=new THREE.Mesh(w.t,mTire),b=new THREE.Mesh(w.r,mRim),c=new THREE.Mesh(w.h,mHub);b.userData.ns=1;c.userData.ns=1;g.add(a);g.add(b);g.add(c)}
 /* надписи: WHITE STONE и мелко Unlocking Kazakhstan Opportunities */
@@ -571,9 +586,9 @@ function buildSemi(g,type,color,driver){var cb=semiCab(type==='box'&&color!==0xf
   g.add(box(4.4,0.32,1.1,mDark,2.0,0.78,0));g.add(ns(box(0.9,0.12,2.0,mDark,0.75,1.02,0)));g.add(ns(cyl(0.38,0.38,0.08,mDark,HITCH,1.1,0,16)));
   T(box(5.6,0.3,1.1,mDark,-2.4,0.95,0));
   if(type==='tanker'){if(!_tankM)_tankM=M(0xf2f4f4,{roughness:.2,metalness:.65});var tm=_tankM;
-    var t=cyl(1.15,1.15,5.4,tm,-1.6,2.2,0,32);t.rotation.z=Math.PI/2;T(t);
-    [-4.3,1.1].forEach(function(x){var c=mesh(new THREE.SphereGeometry(1.15,28,14),tm,x,2.2,0);c.scale.set(0.3,1,1);T(c)});
-    [-3.9,0.7].forEach(function(x){var b=cyl(1.17,1.17,0.32,mTeal,x,2.2,0,32);b.rotation.z=Math.PI/2;T(b)});
+    var t=cyl(1.15,1.15,5.4,tm,-1.6,2.2,0,64);t.rotation.z=Math.PI/2;T(t);
+    [-4.3,1.1].forEach(function(x){var c=mesh(new THREE.SphereGeometry(1.15,48,24),tm,x,2.2,0);c.scale.set(0.3,1,1);T(c)});
+    [-3.9,0.7].forEach(function(x){var b=cyl(1.17,1.17,0.32,mTeal,x,2.2,0,64);b.rotation.z=Math.PI/2;T(b)});
     [1,-1].forEach(function(s){var p=new THREE.Mesh(new THREE.PlaneGeometry(4.2,0.92),decalMat());p.position.set(-1.6,2.25,s*1.17);if(s<0)p.rotation.y=Math.PI;T(ns(p))});
     [-3.0,-1.6,-0.2].forEach(function(x){T(ns(cyl(0.28,0.3,0.14,mMetal,x,3.38,0,16)))});
     T(ns(box(4.0,0.04,0.5,mMetal,-1.6,3.42,0)));[-0.3,0.3].forEach(function(z){T(ns(box(4.0,0.04,0.04,mMetal,-1.6,3.85,z)));for(var x=-3.4;x<=0.3;x+=1.2)T(ns(box(0.04,0.45,0.04,mMetal,x,3.62,z)))});
@@ -582,7 +597,7 @@ function buildSemi(g,type,color,driver){var cb=semiCab(type==='box'&&color!==0xf
     T(box(0.16,0.26,2.3,mDark,-4.98,0.85,0));[-0.95,0.95].forEach(function(z){T(ns(box(0.04,0.55,0.5,mDark,-4.9,0.62,z)))});
     T(beacon(-4.45,3.36,0,bc));
     addWheels(g,[3.9,1.55,0.4]);addWheels(tr,[-2.55-HITCH,-3.45-HITCH,-4.35-HITCH])}
-  else{T(box(6.4,2.75,2.5,M(0xf6f7f6,{roughness:.4}),-1.8,2.42,0));T(box(6.42,0.32,2.52,mTeal,-1.8,1.2,0));
+  else{T(rbox(6.4,2.75,2.5,0.24,M(0xf6f7f6,{roughness:.4}),-1.8,2.42,0));T(box(6.42,0.32,2.52,mTeal,-1.8,1.2,0));
     [1,-1].forEach(function(s){var p=new THREE.Mesh(new THREE.PlaneGeometry(5.6,1.22),decalMat());p.position.set(-1.8,2.62,s*1.26);if(s<0)p.rotation.y=Math.PI;T(ns(p))});
     T(ns(box(0.03,2.5,0.03,mDark,-5.02,2.42,0)));[-0.9,0.9].forEach(function(z){T(ns(box(0.04,0.2,0.1,mMetal,-5.03,1.9,z)));T(ns(box(0.04,0.2,0.1,mMetal,-5.03,3.0,z)))});
     T(box(0.16,0.26,2.3,mDark,-5.08,0.85,0));[-0.95,0.95].forEach(function(z){T(ns(box(0.04,0.55,0.5,mDark,-5.0,0.62,z)))});
@@ -622,20 +637,24 @@ var mChrome=M(0xc9d0d5,{roughness:.18,metalness:.9}),mTrim=M(0x15181b,{roughness
 function carGeo(type){if(_carG[type])return _carG[type];var P=CARP[type],s=new THREE.Shape(),a=P.R+0.07;
   s.moveTo(P.L[0]+0.05,P.yb);var ax=P.ax.slice().sort(function(u,v){return u-v});
   ax.forEach(function(x){s.lineTo(x-a,P.yb);s.absarc(x,P.yb,a,Math.PI,0,true)});
-  s.lineTo(P.L[1]-0.05,P.yb);P.top.forEach(function(p){s.lineTo(p[0],p[1])});s.lineTo(P.L[0]+0.05,P.yb);
-  var body=new THREE.ExtrudeGeometry(s,{depth:P.w-0.16,bevelEnabled:true,bevelThickness:0.08,bevelSize:0.07,bevelSegments:3,curveSegments:14});body.translate(0,0,-(P.w-0.16)/2);
+  s.lineTo(P.L[1]-0.05,P.yb);
+  /* силуэт со скруглёнными углами (капот, стойки, крыша) */
+  var pl=[[P.L[1]-0.05,P.yb]].concat(P.top,[[P.L[0]+0.05,P.yb]]),rc=P.bus?0.26:0.17;
+  for(var q=1;q<pl.length;q++){var c0=pl[q];if(q===pl.length-1){s.lineTo(c0[0],c0[1]);break}var pv=pl[q-1],nx=pl[q+1],l1=Math.hypot(c0[0]-pv[0],c0[1]-pv[1]),l2=Math.hypot(nx[0]-c0[0],nx[1]-c0[1]),r1=Math.min(rc,l1*0.45),r2=Math.min(rc,l2*0.45);
+    s.lineTo(c0[0]+(pv[0]-c0[0])/l1*r1,c0[1]+(pv[1]-c0[1])/l1*r1);s.quadraticCurveTo(c0[0],c0[1],c0[0]+(nx[0]-c0[0])/l2*r2,c0[1]+(nx[1]-c0[1])/l2*r2)}
+  var body=new THREE.ExtrudeGeometry(s,{depth:P.w-0.16,bevelEnabled:true,bevelThickness:0.08,bevelSize:0.07,bevelSegments:6,curveSegments:28});body.translate(0,0,-(P.w-0.16)/2);
   var gs=new THREE.Shape();P.glass.forEach(function(p,i){i?gs.lineTo(p[0],p[1]):gs.moveTo(p[0],p[1])});gs.lineTo(P.glass[0][0],P.glass[0][1]);
   var gl=new THREE.ExtrudeGeometry(gs,{depth:P.w+0.025,bevelEnabled:false});gl.translate(0,0,-(P.w+0.025)/2);
-  return _carG[type]={body:body,gl:gl}}
+  return _carG[type]={body:smoothN(body,50),gl:gl}}
 /* стекло по ребру профиля (лобовое/заднее): плоскость, вынесенная наружу на 2 см */
 function glassEdge(g,p,q,w){var dx=p[0]-q[0],dy=p[1]-q[1],L=Math.hypot(dx,dy),a=Math.atan2(dy,dx),geo=new THREE.PlaneGeometry(L*0.86,w);geo.rotateX(-Math.PI/2);geo.rotateZ(a);
   var m=new THREE.Mesh(geo,mCarGlass);m.position.set((p[0]+q[0])/2-Math.sin(a)*0.025,(p[1]+q[1])/2+Math.cos(a)*0.025,0);ns(m);g.add(m)}
-function carWheels(g,P){var key='c'+P.R+'_'+P.ax.join('_')+'_'+P.w;if(!_whl[key]){var R=P.R,W=P.W,zw=P.w/2-W/2+0.02,T=[],Rm=[],H=[];
-    var prof=[[0.62,-0.5],[0.82,-0.5],[0.94,-0.45],[1,-0.3],[1,0.3],[0.94,0.45],[0.82,0.5],[0.62,0.5]].map(function(p){return new THREE.Vector2(p[0]*R,p[1]*W)});
-    P.ax.forEach(function(x){[zw,-zw].forEach(function(z){var s=z>0?1:-1,t=new THREE.LatheGeometry(prof,26);t.rotateX(Math.PI/2);t.translate(x,R,z);T.push(t);
-      var rim=new THREE.CylinderGeometry(R*0.62,R*0.62,W*0.95,22);rim.rotateX(Math.PI/2);rim.translate(x,R,z);Rm.push(rim);
+function carWheels(g,P){var key='c'+P.R+'_'+P.ax.join('_')+'_'+P.w;if(!_whl[key]){var R=P.R,W=P.W,zw=P.w/2-W/2-0.05,T=[],Rm=[],H=[];
+    var prof=[[0.62,-0.5],[0.8,-0.5],[0.89,-0.48],[0.95,-0.42],[0.985,-0.33],[1,-0.2],[1,0.2],[0.985,0.33],[0.95,0.42],[0.89,0.48],[0.8,0.5],[0.62,0.5]].map(function(p){return new THREE.Vector2(p[0]*R,p[1]*W)});
+    P.ax.forEach(function(x){[zw,-zw].forEach(function(z){var s=z>0?1:-1,t=new THREE.LatheGeometry(prof,56);t.rotateX(Math.PI/2);t.translate(x,R,z);T.push(t);
+      var rim=new THREE.CylinderGeometry(R*0.62,R*0.62,W*0.95,44);rim.rotateX(Math.PI/2);rim.translate(x,R,z);Rm.push(rim);
       for(var k=0;k<5;k++){var a=k/5*Math.PI*2,sp=new THREE.BoxGeometry(R*0.12,R*0.5,0.03);sp.translate(0,R*0.27,0);sp.rotateZ(a);sp.translate(x,R,z+s*W*0.5);H.push(sp)}
-      var hub=new THREE.CylinderGeometry(R*0.14,R*0.14,0.05,12);hub.rotateX(Math.PI/2);hub.translate(x,R,z+s*W*0.52);H.push(hub)})});
+      var hub=new THREE.CylinderGeometry(R*0.14,R*0.14,0.05,20);hub.rotateX(Math.PI/2);hub.translate(x,R,z+s*W*0.52);H.push(hub)})});
     _whl[key]={t:mergeGeos(T),r:mergeGeos(Rm),h:mergeGeos(H)}}
   var w=_whl[key];g.add(new THREE.Mesh(w.t,mTire));g.add(ns(new THREE.Mesh(w.r,M(0x30353a,{roughness:.35,metalness:.75}))));g.add(ns(new THREE.Mesh(w.h,mChrome)))}
 function buildCar(g,type,col){var P=CARP[type],G=carGeo(type),key=type+col;if(!_carM[col])_carM[col]=M(col,{roughness:.2,metalness:.55});var cm=_carM[col];
@@ -669,12 +688,10 @@ function car(type,color,noDriver){
 function put(g,x,z,ry){g.position.set(x,0.3,z);g.rotation.y=ry;add(g);return g}
 /* парковка */
 [['suv',0xffffff],['sedan',0x23272b],['pickup',0xffffff],['suv',0x3a6ea5],['sedan',0xdfe3e5],['bus',0xffffff]].forEach(function(c,i){put(car(c[0],c[1]),-52.5+i*1.8+0.9-(c[0]==='bus'?0.9:0),c[0]==='bus'?3.5:2.5,Math.PI/2)});
-put(car('pickup',0xe5791f),-10,10.5,0.1);put(car('box',0xffffff),30,14,Math.PI/2);
+put(car('pickup',0xe5791f),-10,10.5,0.1);
 var movers=[];
 function mover(type,color,pts,speed,ph){var c=car(type,color);c.position.set(pts[0][0],0.3,pts[0][1]);add(c);movers.push({c:c,pts:pts,s:speed,t:ph||0})}
 
-mover('suv',0xffffff,[[-48,17.8],[40,17.8]],5.0,0.1);
-mover('pickup',0x2f7fb8,[[-38.5,13],[-38.5,-9]],3.4,0.5);
 function worker(x,z,vest){var g=new THREE.Group();g.add(cyl(0.2,0.22,0.9,M(0x2b3a55),0,0.45,0,10));g.add(cyl(0.24,0.26,0.7,M(vest||0xff7a1a,{roughness:.6}),0,1.25,0,10));g.add(mesh(new THREE.SphereGeometry(0.17,10,8),M(0xe0b79a),0,1.78,0));
   g.add(mesh(new THREE.SphereGeometry(0.2,10,8,0,6.28,0,Math.PI/2),M(0xffffff),0,1.84,0));g.position.set(x,0.3,z);g.rotation.y=Math.random()*6;add(g)}
 worker(-47,13,0xff7a1a);worker(-46.4,13.2,0xffe14a);worker(12,-2.5);worker(-1,6.5);worker(46,9,0xffe14a);worker(-31,-15,0x35c46a);worker(-46,-27.4,0xffe14a);
@@ -714,50 +731,157 @@ var movers2=[];
    включает стоп-сигналы и поворотники; прицеп идёт за тягачом на сцепке; сегменты с флагом 'r' проходятся задним ходом;
    режим loop: маршрут A → (ожидание, пока hold) → маршрут B → снова A */
 function cleanPts(pts){var P=[pts[0]];for(var i=1;i<pts.length;i++){var q=P[P.length-1];if(Math.hypot(pts[i][0]-q[0],pts[i][1]-q[1])>0.05)P.push(pts[i])}return P}
-function setPath(m,pts){m.pts=cleanPts(pts);m.L=pathLen(m.pts);m.tot=m.L[m.L.length-1]}
+/* скругление углов маршрута дугами радиуса R (участки заднего хода не трогаем) */
+function filletPts(P,R){if(P.length<3)return P;var out=[P[0]];
+  for(var i=1;i<P.length-1;i++){var A=P[i-1],B=P[i],C=P[i+1];
+    if(B[2]==='r'||C[2]==='r'){out.push(B);continue}
+    var d1=Math.hypot(B[0]-A[0],B[1]-A[1]),d2=Math.hypot(C[0]-B[0],C[1]-B[1]),u1x=(B[0]-A[0])/d1,u1z=(B[1]-A[1])/d1,u2x=(C[0]-B[0])/d2,u2z=(C[1]-B[1])/d2,
+        th=Math.acos(Math.max(-1,Math.min(1,u1x*u2x+u1z*u2z)));
+    if(th<0.03){out.push(B);continue}
+    var t=Math.min(R*Math.tan(Math.min(th,3.0)/2),d1*0.48,d2*0.48),n=Math.max(2,Math.ceil(th/0.1)),ax=B[0]-u1x*t,az=B[1]-u1z*t,cx=B[0]+u2x*t,cz=B[1]+u2z*t;
+    for(var k=0;k<=n;k++){var q=k/n,w0=(1-q)*(1-q),w1=2*(1-q)*q,w2=q*q;out.push([w0*ax+w1*B[0]+w2*cx,w0*az+w1*B[1]+w2*cz])}}
+  out.push(P[P.length-1]);return cleanPts(out)}
+function setPath(m,pts){var P=filletPts(cleanPts(pts),m.R||5);m.pts=P;m.L=pathLen(P);m.tot=m.L[m.L.length-1];m.cusp=[];
+  for(var i=1;i<P.length-1;i++)if((P[i][2]==='r')!==(P[i+1][2]==='r'))m.cusp.push(m.L[i])}
+/* разворот в конце маршрута как у водителя: задним ходом с поворотом вправо, затем вперёд налево */
+function kTurn(E,fx,fz,R){var sx=-fz,sz=fx,P=[],k,a,cx=E[0]+sx*R,cz=E[1]+sz*R,ox=E[0]+sx*R-fx*R*2,oz=E[1]+sz*R-fz*R*2;
+  for(k=1;k<=9;k++){a=k/9*Math.PI/2;P.push([cx-sx*R*Math.cos(a)-fx*R*Math.sin(a),cz-sz*R*Math.cos(a)-fz*R*Math.sin(a),'r'])}
+  for(k=1;k<=9;k++){a=k/9*Math.PI/2;P.push([ox+fx*R*Math.cos(a)-sx*R*Math.sin(a),oz+fz*R*Math.cos(a)-sz*R*Math.sin(a)])}
+  return P}
 function mover2(type,color,pts,speed,u0,opt){opt=opt||{};var c=typeof type==='string'?car(type,color):type;add(c);
-  var m={c:c,kind:opt.kind||(typeof type==='string'?type:'flat'),s:speed,v:speed,h:null,ht:null,wait:0,dw:opt.dw||(5+rnd()*5),lane:1.45,rx:null,rz:null,
-    loop:opt.loop||null,pi:0,hold:false,atEnd:false,onEnd:opt.onEnd||null,onStart:opt.onStart||null};
+  var m={c:c,kind:opt.kind||(typeof type==='string'?type:'flat'),s:speed,v:speed,h:null,ht:null,wait:0,dw:opt.dw||(5+rnd()*5),lane:opt.lane||1.9,rx:null,rz:null,
+    R:opt.R||(c.userData.tr?7.5:(type==='bus'?6:4.5)),loop:opt.loop||null,pi:0,hold:false,atEnd:false,onEnd:opt.onEnd||null,onStart:opt.onStart||null};
+  if(!m.loop&&pts){var P0=cleanPts(pts);m.loop=[P0,P0.slice().reverse()];m.onEnd=function(mm){mm.wait=mm.dw}}
+  /* стык маршрутов, где надо ехать назад той же дорогой, — разворот задним ходом вместо поворота на месте */
+  m.loop=m.loop.map(function(cur,k,arr){cur=cleanPts(cur);var prev=cleanPts(arr[(k+arr.length-1)%arr.length]),E=prev[prev.length-1],D=prev[prev.length-2],S1=cur[1];
+    if(!S1||S1[2]==='r')return cur;
+    /* направления берём по точкам в 6+ м от стыка, чтобы короткий заезд на площадку не сбивал */
+    var a=prev.length-2;while(a>0&&Math.hypot(prev[a][0]-E[0],prev[a][1]-E[1])<6)a--;D=prev[a];var b=1;while(b<cur.length-1&&Math.hypot(cur[b][0]-cur[0][0],cur[b][1]-cur[0][1])<6)b++;S1=cur[b];
+    var fx=E[0]-D[0],fz=E[1]-D[1],l=Math.hypot(fx,fz)||1;fx/=l;fz/=l;if(E[2]==='r'){fx=-fx;fz=-fz}
+    var gx=S1[0]-cur[0][0],gz=S1[1]-cur[0][1],l2=Math.hypot(gx,gz)||1;if((fx*gx+fz*gz)/l2>-0.5)return cur;
+    var R=m.R*0.8,i=0;while(i<cur.length-1&&Math.hypot(E[0]-cur[i][0],E[1]-cur[i][1])<2*R+1)i++;
+    return [cur[0]].concat(kTurn(E,fx,fz,R),cur.slice(i))});
   setPath(m,m.loop?m.loop[0]:pts);m.d=u0*(m.loop?m.tot:2*m.tot);movers2.push(m);return m}
 function poseAt(m,d){var fw,a;
   if(m.loop){fw=true;a=Math.max(0,Math.min(d,m.tot))}else{d=((d%(2*m.tot))+2*m.tot)%(2*m.tot);fw=d<m.tot;a=fw?d:2*m.tot-d}
-  var i=1;while(i<m.L.length-1&&m.L[i]<a)i++;
+  var lo=1,hi=m.L.length-1;while(lo<hi){var mid=(lo+hi)>>1;if(m.L[mid]<a)lo=mid+1;else hi=mid}var i=lo;
   var p0=m.pts[i-1],p1=m.pts[i],sl=(m.L[i]-m.L[i-1])||1,u=(a-m.L[i-1])/sl,s=fw?1:-1,dx=(p1[0]-p0[0])*s/sl,dz=(p1[1]-p0[1])*s/sl,
-      rev=fw&&p1[2]==='r',ln=m.lane*Math.max(0,Math.min(1,a/25,(m.tot-a)/25))*(p1[2]==='r'||p0[2]==='r'?0:1),th=Math.atan2(-dz,dx);
+      rev=fw&&p1[2]==='r',ln=m.lane*Math.max(0,Math.min(1,a/20,(m.tot-a)/20))*(p1[2]==='r'||p0[2]==='r'?0:1),th=Math.atan2(-dz,dx);
+  if(m.cusp)for(var c=0;c<m.cusp.length;c++)ln*=Math.min(1,Math.abs(a-m.cusp[c])/8);
   if(rev)th+=Math.PI;
   return {x:p0[0]+(p1[0]-p0[0])*u-dz*ln,z:p0[1]+(p1[1]-p0[1])*u+dx*ln,fx:dx,fz:dz,th:th,fw:fw,rev:rev}}
 function wrapA(a){while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a}
-var _clk=0;
-window.__tick=function(dt){_tickFar();_clk+=dt;var blink=(_clk*1.7)%1<0.5,n=movers2.length,i,j;
-  for(i=0;i<n;i++){var m=movers2[i];m.p=poseAt(m,m.d)}
-  for(i=0;i<n;i++){var m=movers2[i],stop=m.wait>0||m.hold,tg=stop?0:(m.p.rev?Math.min(m.s,2.6):m.s);m.blk=-1;
+/* контур машины точками: тягач + прицеп по своему углу; легковые — 3 точки */
+function bodyOf(m){var h=m.h,fx=Math.cos(h),fz=-Math.sin(h),x=m.rx,z=m.rz;
+  if(m.c.userData.tr){var t=m.ht==null?h:m.ht,tx=Math.cos(t),tz=-Math.sin(t),hx=x+fx*0.6,hz=z+fz*0.6;
+    return [[x+fx*3.6,z+fz*3.6],[x+fx*1.4,z+fz*1.4],[hx-tx*1.8,hz-tz*1.8],[hx-tx*4.4,hz-tz*4.4]]}
+  var k=m.kind==='bus'?2.4:1.5;return [[x+fx*k,z+fz*k],[x,z],[x-fx*k,z-fz*k]]}
+var _clk=0,CLR=2.3,HARD=2.2,PRI={},ZONES=null;
+/* зоны: места, где пути пересекаются (перекрёстки, развилки), площадки на концах маршрутов, двор и каждый сливной бокс.
+   В зону въезжает одна машина и только если за зоной есть куда выехать; зоны ближе 15 м друг к другу берутся вместе */
+function zoneSpans(t){var sp=[],cur={};for(var d=0;d<=t.tot+0.5;d+=1){var dd=Math.min(d,t.tot),p=poseAt(t,dd);
+    for(var zi=0;zi<ZONES.length;zi++){var z=ZONES[zi],inside=Math.hypot(z.x-p.x,z.z-p.z)<z.r;if(inside){if(!cur[zi])cur[zi]={z:zi,a:dd,b:dd};cur[zi].b=dd}else if(cur[zi]){sp.push(cur[zi]);delete cur[zi]}}}
+  for(var k in cur)sp.push(cur[k]);sp.sort(function(a,b){return a.a-b.a});return sp}
+function buildZones(){var man=[{x:-43,z:-7,r:10}];BAYS.forEach(function(bx){man.push({x:bx,z:BAYZ,r:2.5})});
+  movers2.forEach(function(m){m.loop.forEach(function(P){var e=P[P.length-1];if(Math.abs(e[1]-BAYZ)<0.5)return;
+    if(!man.some(function(z){return Math.hypot(z.x-e[0],z.z-e[1])<4}))man.push({x:e[0],z:e[1],r:m.c.userData.tr?18:14})})});
+  var G={},S=[],cell=4,C=[];
+  movers2.forEach(function(m,mi){m.loop.forEach(function(P,pi){var t={loop:true,lane:m.lane,R:m.R};setPath(t,P);
+    for(var d=0;d<=t.tot;d+=2){var p=poseAt(t,d);if(man.some(function(z){return Math.hypot(z.x-p.x,z.z-p.z)<z.r+2}))continue;
+      var sm=[p.x,p.z,Math.atan2(p.fz,p.fx),mi*10+pi],k=Math.floor(p.x/cell)+','+Math.floor(p.z/cell);S.push(sm);(G[k]||(G[k]=[])).push(sm)}})});
+  S.forEach(function(sm){var cx=Math.floor(sm[0]/cell),cz=Math.floor(sm[1]/cell);for(var a=-1;a<=1;a++)for(var b=-1;b<=1;b++){var L=G[(cx+a)+','+(cz+b)];if(!L)continue;
+    for(var q=0;q<L.length;q++){var o=L[q];if(o[3]<=sm[3])continue;if(Math.hypot(o[0]-sm[0],o[1]-sm[1])<3.4&&Math.abs(wrapA(o[2]-sm[2]))>0.45)C.push([(o[0]+sm[0])/2,(o[1]+sm[1])/2])}}});
+  var Z=[];C.forEach(function(c){for(var k=0;k<Z.length;k++){var z=Z[k];if(Math.hypot(z.sx/z.n-c[0],z.sz/z.n-c[1])<9){z.sx+=c[0];z.sz+=c[1];z.n++;z.p.push(c);return}}Z.push({sx:c[0],sz:c[1],n:1,p:[c]})});
+  ZONES=man.concat(Z.map(function(z){var x=z.sx/z.n,y=z.sz/z.n,r=4;z.p.forEach(function(c){r=Math.max(r,Math.hypot(c[0]-x,c[1]-y)+4)});return {x:x,z:y,r:Math.min(r,16)}}));
+  ZONES.forEach(function(z){z.h=-1});
+  movers2.forEach(function(m){m.zs=m.loop.map(function(P){var t={loop:true,lane:m.lane,R:m.R};setPath(t,P);return zoneSpans(t)});m.zh={}});
+  /* стартовые места: если машина появилась на другой — отодвигаем назад по маршруту */
+  movers2.forEach(function(m,i){if(m.hold)return;for(var t=0;t<12;t++){var p=poseAt(m,m.d),bad=false;
+    for(var j=0;j<i;j++){var o=movers2[j],q=o.p||poseAt(o,o.d);if(Math.hypot(q.x-p.x,q.z-p.z)<16)bad=true}
+    if(ZONES.some(function(z){return Math.hypot(z.x-p.x,z.z-p.z)<z.r+6}))bad=true;
+    if(!bad)break;m.d=Math.max(0,m.d-14)}m.p=poseAt(m,m.d);m.rx=null})}
+window.__tick=function(dt){_tickFar();_clk+=dt;var blink=(_clk*1.7)%1<0.5,n=movers2.length,i,j,k;
+  if(!ZONES)buildZones();
+  for(i=0;i<n;i++){var m=movers2[i];m.p=poseAt(m,m.d);if(m.rx===null||m.h===null){m.rx=m.p.x;m.rz=m.p.z;m.h=m.p.th;m.ht=m.p.th}m.B=bodyOf(m);
+    /* зона освобождается, когда машина целиком из неё выехала */
+    var semi0=!!m.c.userData.tr,tail0=m.p.rev?(semi0?4.6:2.4):(semi0?6:(m.kind==='bus'?3.4:2.6));
+    for(var zk in m.zh){if(m.d>m.zh[zk]+tail0){ZONES[zk].h=-1;delete m.zh[zk]}}}
+  /* 1) желаемая скорость: сброс перед поворотом и перед сменой хода; 2) свой путь впереди свободен? */
+  for(i=0;i<n;i++){var m=movers2[i],stop=m.wait>0||m.hold,tg=stop?0:(m.p.rev?Math.min(m.s,2.6):m.s),dc=1e9;m.cf=[];
     if(m.ghost>0)m.ghost-=dt;
-    if(!stop&&!(m.ghost>0)&&m.c.visible)for(j=0;j<n;j++){if(j===i||!movers2[j].c.visible)continue;var o=movers2[j],rx=o.p.x-m.p.x,rz=o.p.z-m.p.z,al=rx*m.p.fx+rz*m.p.fz;if(al<=0||al>20)continue;
-      var lat=Math.abs(-rx*m.p.fz+rz*m.p.fx);if(lat>2.5)continue;var lim=m.s*Math.max(0,(al-9)/10);if(lim<tg){tg=lim;m.blk=j}}
-    m.tg=m.ghost>0?m.s*0.6:tg}
-  for(i=0;i<n;i++){var m=movers2[i];if(m.blk>=0&&movers2[m.blk].blk===i&&i<m.blk)m.tg=m.s*0.5;
-    m.stk=(m.blk>=0&&m.v<0.3&&m.wait<=0&&!m.hold)?(m.stk||0)+dt:0;if(m.stk>4+(i%5)*0.7){m.ghost=3.5;m.stk=0;m.tg=m.s*0.45}}
+    if(!stop){if(m.loop)for(k=0;k<m.cusp.length;k++)if(m.cusp[k]>m.d+0.001){dc=m.cusp[k]-m.d;break}
+      tg=Math.min(tg,0.5+dc*0.7);
+      var pa=poseAt(m,m.d+Math.min(m.p.rev?4:9,dc)),df=Math.abs(wrapA(pa.th-m.p.th));tg=Math.min(tg,m.s*(1-Math.min(0.7,df/1.1)))}
+    var semi=!!m.c.userData.tr;
+    m.lw=-1;
+    if(!stop){var sp=m.zs[m.pi],fr=semi?4.6:(m.kind==='bus'?3.4:2.4),need=-1;
+      for(k=0;k<sp.length;k++){if(m.zh[sp[k].z]!=null||sp[k].b+6<m.d)continue;need=k;break}
+      if(need>=0){var s0=sp[need],de=s0.a-(m.d+fr);
+        if(de<8+m.v*m.v/8){var grp=[s0],lb=s0.b;for(k=need+1;k<sp.length&&sp[k].a<lb+15;k++){grp.push(sp[k]);lb=Math.max(lb,sp[k].b)}
+          var free=true;for(k=0;k<grp.length;k++){var hz=ZONES[grp[k].z].h;if(hz>=0&&hz!==i){free=false;m.lw=hz;break}}
+          /* за зоной должно быть свободно, иначе не въезжаем (не стоим посреди перекрёстка) */
+          /* очередь: зону берёт только первый — если до входа в зону впереди стоит другая машина, ждём за ней */
+          for(var dd0=m.d+fr,ga=grp[grp.length-1].a;dd0<ga&&free;dd0+=1.5){var q0=poseAt(m,dd0);
+            for(j=0;j<n&&free;j++){if(j===i||!movers2[j].c.visible)continue;var ob0=movers2[j].B;for(var b0=0;b0<ob0.length;b0++)if(Math.hypot(ob0[b0][0]-q0.x,ob0[b0][1]-q0.z)<CLR){free=false;m.lw=j;break}}}
+          if(free&&lb<m.tot-1){for(var dd=lb;dd<=lb+(semi?14:7)&&free;dd+=1.5){var q=poseAt(m,dd);
+            for(j=0;j<n&&free;j++){if(j===i||!movers2[j].c.visible)continue;var ob=movers2[j].B;for(var b2=0;b2<ob.length;b2++)if(Math.hypot(ob[b2][0]-q.x,ob[b2][1]-q.z)<CLR+0.6){free=false;m.lw=j;break}}}}
+          if(free)grp.forEach(function(g){ZONES[g.z].h=i;m.zh[g.z]=g.b});
+          else if(de>-3)tg=Math.min(tg,Math.sqrt(10*Math.max(0,de-0.8)))}}}
+    m.tg0=tg;
+    if(!stop&&m.c.visible&&!(m.ghost>0)){var off=semi?(m.p.rev?4.4:3.6):(m.kind==='bus'?2.4:1.5),
+        Ls=Math.min(5+m.v*1.6+m.v*m.v/12,dc),R2=(Ls+off+14)*(Ls+off+14),Q=[];
+      for(var sd=0;sd<=Ls+0.01;sd+=1.2){var q=sd===0?m.p:poseAt(m,m.d+sd);Q.push([q.x+q.fx*off,q.z+q.fz*off,sd])}
+      for(j=0;j<n;j++){if(j===i)continue;var o=movers2[j];if(!o.c.visible)continue;var ddx=o.rx-m.rx,ddz=o.rz-m.rz;if(ddx*ddx+ddz*ddz>R2)continue;
+        var hit=-1;for(k=0;k<Q.length&&hit<0;k++)for(var b=0;b<o.B.length;b++){var ex=o.B[b][0]-Q[k][0],ez=o.B[b][1]-Q[k][1];if(ex*ex+ez*ez<CLR*CLR){hit=Q[k][2];break}}
+        if(hit>=0)m.cf.push([j,hit])}}}
+  /* 3) кто кого ждёт: при взаимной помехе проезжает тот, кто ближе к месту встречи */
+  for(i=0;i<n;i++){var m=movers2[i],tg=m.tg0;m.blk=-1;
+    for(k=0;k<m.cf.length;k++){var j=m.cf[k][0],sd=m.cf[k][1],o=movers2[j],mut=null;
+      for(var q2=0;q2<o.cf.length;q2++)if(o.cf[q2][0]===i){mut=o.cf[q2][1];break}
+      if(mut!==null){var pk=Math.min(i,j)+'_'+Math.max(i,j),w=PRI[pk];if(!w||_clk-w.t>1.5)w=PRI[pk]={win:Math.abs(sd-mut)>0.5?(sd<mut?i:j):Math.min(i,j)};w.t=_clk;if(w.win===i)continue}
+      var lim=Math.min(m.s,Math.sqrt(10*Math.max(0,sd-1.0)));if(lim<tg){tg=lim;m.blk=j}}
+    if(m.blk<0&&m.hb>=0)m.blk=m.hb;
+    m.byLock=m.blk<0&&m.lw>=0;if(m.byLock)m.blk=m.lw;
+    m.stk=(m.blk>=0&&m.v<0.3&&!(m.wait>0)&&!m.hold)?(m.stk||0)+dt:0;
+    m.tg=tg}
+  /* настоящий тупик — только если ожидание замкнулось в круг (A ждёт B, B ждёт A); тогда один аккуратно проезжает */
+  for(i=0;i<n;i++){var m=movers2[i];if(!(m.stk>3)||m.byLock)continue;var c=m.blk,steps=0;while(c>=0&&c!==i&&steps<n){c=movers2[c].stk>1?movers2[c].blk:-1;steps++}
+    if(c===i){m.ghost=3;m.stk=0;m.tg=m.s*0.5}}
   for(i=0;i<n;i++){var m=movers2[i];
     if(m.wait>0||m.hold){m.wait-=dt;m.v=0}else if(m.tg<m.v)m.v=Math.max(m.tg,m.v-9*dt);else m.v=Math.min(m.tg,m.v+2.2*dt);
-    var od=m.d,nd=od+m.v*dt;
-    if(m.loop){if(nd>=m.tot){nd=m.tot;if(!m.atEnd){m.atEnd=true;if(m.onEnd)m.onEnd(m)}
-        if(!m.hold&&m.wait<=0){m.pi=(m.pi+1)%m.loop.length;setPath(m,m.loop[m.pi]);nd=0;m.atEnd=false;m.h=null;if(m.onStart)m.onStart(m)}}}
+    var od=m.d,nd=od+m.v*dt,pi0=m.pi;
+    if(m.loop){for(k=0;k<m.cusp.length;k++){var cc=m.cusp[k];if(od<cc&&nd>=cc){nd=cc+0.001;m.wait=1.1;m.v=0;break}}
+      if(nd>=m.tot){nd=m.tot;if(!m.atEnd){m.atEnd=true;if(m.onEnd)m.onEnd(m)}
+        if(!m.hold&&m.wait<=0){m.pi=(m.pi+1)%m.loop.length;setPath(m,m.loop[m.pi]);nd=0;m.atEnd=false;
+          /* зоны, в которых машина стоит, переходят на новый маршрут */
+          var ns=m.zs[m.pi];for(var zk in m.zh){var f=null;for(var q3=0;q3<ns.length;q3++)if(ns[q3].z==zk&&ns[q3].a<1){f=ns[q3];break}if(f)m.zh[zk]=f.b;else{ZONES[zk].h=-1;delete m.zh[zk]}}
+          if(m.onStart)m.onStart(m)}}}
     else if(od<m.tot&&nd>=m.tot){nd=m.tot+0.02;m.wait=m.dw}else if(nd>=2*m.tot){nd=0.02;m.wait=m.dw}
+    var sv=[m.d,m.h,m.rx,m.rz,m.ht],samePath=m.pi===pi0;
     m.d=nd;
-    var p=poseAt(m,m.d);if(m.h===null){m.h=p.th;m.rx=p.x;m.rz=p.z;m.ht=p.th}
-    m.h+=wrapA(p.th-m.h)*Math.min(1,dt*2.6);
-    var k=1-Math.exp(-dt*12);m.rx+=(p.x-m.rx)*k;m.rz+=(p.z-m.rz)*k;
-    m.c.position.set(m.rx,roadH(m.rx,m.rz)+0.33,m.rz);m.c.rotation.y=m.h;
+    var p=poseAt(m,m.d);
+    m.h+=wrapA(p.th-m.h)*Math.min(1,dt*5);
+    var kk=1-Math.exp(-dt*12);m.rx+=(p.x-m.rx)*kk;m.rz+=(p.z-m.rz)*kk;
     /* сцепка: прицеп догоняет направление тягача (задним ходом — плавно выравнивается) */
     var tr=m.c.userData.tr;if(tr){if(m.ht===null||Math.abs(wrapA(m.h-m.ht))>1.25)m.ht=m.h;
-      if(p.rev||m.wait>0||m.hold)m.ht+=wrapA(m.h-m.ht)*Math.min(1,dt*1.6);else m.ht+=(m.v/4.2)*Math.sin(wrapA(m.h-m.ht))*dt;
-      tr.rotation.y=wrapA(m.ht-m.h)}
+      if(p.rev||m.wait>0||m.hold)m.ht+=wrapA(m.h-m.ht)*Math.min(1,dt*1.6);else m.ht+=(m.v/4.2)*Math.sin(wrapA(m.h-m.ht))*dt}
+    /* жёсткое правило: шаг, который приближает машину вплотную к другой, не делается */
+    if(m.c.visible&&samePath&&!(m.ghost>0)){var nb=bodyOf(m),dn=1e9,dO=1e9,by=-1;
+      for(j=0;j<n;j++){if(j===i||!movers2[j].c.visible)continue;var ob=movers2[j].B;
+        for(var a1=0;a1<nb.length;a1++)for(var b1=0;b1<ob.length;b1++){var e1=Math.hypot(nb[a1][0]-ob[b1][0],nb[a1][1]-ob[b1][1]),e0=Math.hypot(m.B[a1][0]-ob[b1][0],m.B[a1][1]-ob[b1][1]);if(e1<dn){dn=e1;by=j}if(e0<dO)dO=e0}}
+      if(dn<HARD&&dn<dO-1e-4){m.d=sv[0];m.h=sv[1];m.rx=sv[2];m.rz=sv[3];m.ht=sv[4];m.v=0;p=poseAt(m,m.d);m.hb=by;
+        /* «победитель» упёрся в уступающего — меняем очерёдность, пусть сначала проедет тот */
+        var pk2=Math.min(i,by)+'_'+Math.max(i,by),w2=PRI[pk2];if(w2&&w2.win===i){w2.win=by;w2.t=_clk}}else{m.B=nb;m.hb=-1}}
+    else m.B=bodyOf(m);
+    m.c.position.set(m.rx,roadH(m.rx,m.rz)+0.33,m.rz);m.c.rotation.y=m.h;if(tr)tr.rotation.y=wrapA(m.ht-m.h);
     var Lt=m.c.userData.L;if(Lt){var brake=m.wait>0||m.hold||m.v<0.4||m.tg<m.v-0.3;Lt.b.color.setHex(brake?0xff2414:0x4a0d0a);
       var turn=0,ahead=m.d+14;if(!m.loop&&(ahead<m.tot)!==p.fw)ahead=-1;if(m.loop&&ahead>m.tot)ahead=-1;
       if(ahead>=0&&!(m.wait>0)&&!m.hold){var pa=poseAt(m,ahead),df=wrapA(pa.th-p.th);if(!pa.rev&&!p.rev){if(df>0.35)turn=1;else if(df<-0.35)turn=-1}}
       if(m.wait>0&&m.wait<2.5)turn=1;
       Lt.l.color.setHex(turn===1&&blink?0xffae00:0x4a3500);Lt.r.color.setHex(turn===-1&&blink?0xffae00:0x4a3500);
       if(Lt.bc)for(var bi=0;bi<Lt.bc.length;bi++)Lt.bc[bi].color.setHex(((_clk*2.3+bi*0.37+i*0.13)%1)<0.28?0xffb000:0x5a3c00)}}};
+/* для проверки из консоли: список машин и установка камеры */
+window.__M=movers2;window.__Z=function(){return ZONES};window.__cam=function(x,y,z,tx,ty,tz){camera.position.set(x,y,z);controls.target.set(tx,ty,tz);camera.lookAt(tx,ty,tz);renderer.render(scene,camera)};
 
 /* устье скважины (ёлка) */
 function wellhead(x,z,k){var t=new THREE.Group();[[0.5,0.45],[1.1,0.34],[1.6,0.3],[2.2,0.22],[2.8,0.16]].forEach(function(l,i){t.add(cyl(l[1],l[1],l[0]===0.5?0.5:0.6,i%2?mMetal:mTeal,0,l[0],0,14))});
@@ -805,8 +929,9 @@ var BAYS=[-46,-42.5,-39,-35.5],BAYZ=-20.4;
   bldg({w:3,d:2.6,h:2.6,roof:'flat',x:-34.4,z:4.2});tagS('Weighbridge',-38.5,5.2,4,'#0f7f76',0.9);
 })();
 /* маршруты цистерны к месту b: заезд (вперёд на запад, затем задним ходом в место) и выезд (вперёд на юг к дороге) */
-function bayIn(b){var bx=BAYS[b],sx=Math.min(bx-3.5,-42.2),P=[[-38.5,-1],[-39.8,-4.6],[-42.2,-6.2]];if(sx<-42.3)P.push([sx,-6.2]);
-  return P.concat([[bx-1.3,-8.8,'r'],[bx-0.15,-12.2,'r'],[bx,-15.6,'r'],[bx,BAYZ,'r']])}
+function bayIn(b){var bx=BAYS[b],sx=bx-6,P=[[-38.5,-1],[-38.5,-3.2]];if(sx<-42.5)P.push([-42,-6.5]);P.push([sx,-6.5]);
+  for(var k=1;k<=10;k++){var f=k/10*Math.PI/2;P.push([sx+6*Math.sin(f),-12.5+6*Math.cos(f),'r'])}
+  return P.concat([[bx,-15.6,'r'],[bx,BAYZ,'r']])}
 function bayOut(b){var bx=BAYS[b];return [[bx,BAYZ],[bx,-13],[bx+(-38.5-bx)*0.45,-8],[-38.5,-4],[-38.5,0]]}
 
 /* ---------- зоны развития (полномасштабное производство), увеличенные вдвое, и дорога на восток ---------- */
@@ -995,7 +1120,7 @@ var RING=null,OUTR=null,RT=null;
   (function(){var rd=[],x;for(x=CX;x>=-70;x+=10){}
     /* посёлок ↔ общая парковка: служебный транспорт на завод не заезжает (схема В) */
     var pts=[[CX,CZ-24],[CX,roadZ(CX)]];for(x=CX+8;x<=-80;x+=10)pts.push([x,roadZ(x)]);pts.push([-78,roadZ(-78)],[-78,13],[-84,5.2],[-104,5.2]);
-    mover2('bus',0xffffff,pts,8,0.2);mover2('suv',0xffffff,pts,10,0.65);mover2('pickup',0xe5791f,pts,9,0.9)})();
+    mover2('bus',0xffffff,pts,8,0.2)})();
 })();
 
 /* ---------- посёлок: теннисный корт, баскетбольная площадка, стоянка грузовиков ---------- */
@@ -1698,7 +1823,33 @@ var bA=document.getElementById('bArch'),bB=document.getElementById('bBox'),bG=do
 bA.onclick=function(){hState.arch=true;setP(bA,1);setP(bB,0);buildHangar()};bB.onclick=function(){hState.arch=false;setP(bA,0);setP(bB,1);buildHangar()};
 bG.onclick=function(){hState.glass=!hState.glass;setP(bG,hState.glass);buildHangar()};bS.onclick=function(){hState.solar=!hState.solar;setP(bS,hState.solar);buildHangar()};
 var lb=document.getElementById('bLabels');lb.onclick=function(){var v=lb.getAttribute('aria-pressed')!=='true';setP(lb,v);tags.forEach(function(s){s.visible=v})};
-var gd=document.getElementById('bGold');gd.onclick=function(){var v=gd.getAttribute('aria-pressed')!=='true';setP(gd,v);v?goldLight():dayLight()};
+var gd=document.getElementById('bGold'),bN=document.getElementById('bNight');
+/* ночь: строится один раз при первом включении */
+var NIGHT=null;
+function nightBuild(){NIGHT={g:new THREE.Group(),hl:[]};var pos=[],i;
+  for(i=0;i<1400;i++){var u=Math.random(),a=Math.random()*6.283,r=Math.sqrt(1-u*u);if(u<0.04)continue;pos.push(r*Math.cos(a)*3000,u*3000,r*Math.sin(a)*3000)}
+  var sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  NIGHT.g.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:1.7,sizeAttenuation:false,fog:false,transparent:true,opacity:0.9})));
+  var moon=new THREE.Mesh(new THREE.SphereGeometry(42,24,16),new THREE.MeshBasicMaterial({color:0xf2f0e6,fog:false}));moon.position.copy(new THREE.Vector3(0,0,0));NIGHT.moon=moon;NIGHT.g.add(moon);
+  var c=document.createElement('canvas');c.width=c.height=128;var x=c.getContext('2d'),gr=x.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,226,170,0.9)');gr.addColorStop(0.45,'rgba(255,212,150,0.32)');gr.addColorStop(1,'rgba(255,205,140,0)');x.fillStyle=gr;x.fillRect(0,0,128,128);
+  var tex=new THREE.CanvasTexture(c),pm=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}),
+      hm=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}),pg=new THREE.PlaneGeometry(14,14),v=new THREE.Vector3();pg.rotateX(-Math.PI/2);
+  scene.updateMatrixWorld(true);var lamps=[];
+  scene.traverse(function(o){if(o.isMesh&&o.material&&o.material.isMeshBasicMaterial&&o.material.color&&o.material.color.getHex()===0xfff3c8){o.getWorldPosition(v);lamps.push(v.clone())}});
+  lamps.forEach(function(p){var d=new THREE.Mesh(pg,pm);d.position.set(p.x,Math.max(terrainH(p.x,p.z),0)+0.42,p.z);d.renderOrder=2;NIGHT.g.add(d);
+    var h=new THREE.Sprite(hm);h.position.copy(p);h.scale.set(2.6,2.6,1);NIGHT.g.add(h)});
+  /* фары: два световых пятна у передних фонарей каждой машины */
+  var fm=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,color:0xf4f8ff});
+  movers2.forEach(function(m){var semi=!!m.c.userData.tr,P=CARP[m.kind],fx=semi?4.75:(P?P.L[1]+0.12:2.4),fy=semi?1.15:(P&&P.bus?0.95:0.75),fz=semi?0.95:(P?P.w/2-0.3:0.7);
+    [-1,1].forEach(function(sd){var sp=new THREE.Sprite(fm);sp.position.set(fx,fy,sd*fz);sp.scale.set(1.5,1.5,1);sp.visible=false;m.c.add(sp);NIGHT.hl.push(sp)})});
+  scene.add(NIGHT.g)}
+function setNight(on){if(on&&!NIGHT)nightBuild();if(!NIGHT)return;NIGHT.g.visible=on;NIGHT.hl.forEach(function(h){h.visible=on});
+  if(on){setSun(40,205,0x8aa2d8,0x02060f,0x0d1828,0x22324f,0x070d18,0.62);sun.intensity=0.24;hemi.intensity=0.24;hemi.groundColor.set(0x0b120a);skyU.glow.value.set(0x9aa6c8);NIGHT.moon.position.copy(sunDir).multiplyScalar(2900)}
+  else{sun.intensity=1.15;hemi.intensity=0.55;hemi.groundColor.set(0x4f7a30);skyU.glow.value.set(0xfff2c8)}}
+function lightMode(mode){setP(gd,mode==='gold');setP(bN,mode==='night');setNight(mode==='night');if(mode==='gold')goldLight();else if(mode==='day')dayLight()}
+gd.onclick=function(){lightMode(gd.getAttribute('aria-pressed')==='true'?'day':'gold')};
+bN.onclick=function(){lightMode(bN.getAttribute('aria-pressed')==='true'?'day':'night')};
 var ui=document.getElementById('ui'),sh=document.getElementById('showUi'),lg=document.getElementById('legend');
 function hideUi(h){ui.hidden=h;lg.hidden=h;sh.hidden=!h}
 if(window.innerWidth<760||TOUCH)hideUi(true);
