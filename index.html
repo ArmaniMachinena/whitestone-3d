@@ -605,7 +605,7 @@ function buildSemi(g,type,color,driver){var cb=semiCab(type==='box'&&color!==0xf
   var tr=new THREE.Group();tr.position.x=HITCH;g.add(tr);g.userData.tr=tr;
   function T(o){o.position.x-=HITCH;tr.add(o);return o}
   g.add(box(4.4,0.32,1.1,mDark,2.0,0.78,0));g.add(ns(box(0.9,0.12,2.0,mDark,0.75,1.02,0)));g.add(ns(cyl(0.38,0.38,0.08,mDark,HITCH,1.1,0,16)));
-  T(box(5.6,0.3,1.1,mDark,-2.4,0.95,0));
+  T(box(5.4,0.3,1.1,mDark,-2.3,0.95,0));
   /* обтекатели между осями, хромовая полоса бампера, боковые габариты, подножки */
   [-1,1].forEach(function(sd){g.add(rbox(1.5,0.62,0.1,0.04,_cabM[type==='box'&&color!==0xffffff?color:0xeef1f2]||mDark,2.75,1.0,sd*1.16));
     g.add(ns(box(0.5,0.04,0.32,mChrome,2.75,0.62,sd*1.08)));
@@ -626,13 +626,13 @@ function buildSemi(g,type,color,driver){var cb=semiCab(type==='box'&&color!==0xf
     [-0.28,0.28].forEach(function(z){T(ns(box(0.05,2.2,0.05,mMetal,-4.72,2.2,z)))});for(var r=0;r<6;r++)T(ns(box(0.05,0.04,0.6,mMetal,-4.72,1.3+r*0.36,0)));
     T(ns(cyl(0.09,0.09,0.4,mDark,-4.5,1.0,0.5,10)));T(ns(cyl(0.09,0.09,0.4,mDark,-4.5,1.0,-0.5,10)));
     T(box(0.16,0.26,2.3,mDark,-4.98,0.85,0));[-0.95,0.95].forEach(function(z){T(ns(box(0.04,0.55,0.5,mDark,-4.9,0.62,z)))});
-    T(beacon(-4.45,3.36,0,bc));
+    T(beacon(-4.45,3.36,0,bc));g.userData.rl={x:-5.06,y:0.85};
     addWheels(g,[3.9,1.55,0.4]);addWheels(tr,[-2.55-HITCH,-3.45-HITCH,-4.35-HITCH])}
   else{T(rbox(6.4,2.75,2.5,0.24,M(0xf6f7f6,{roughness:.4}),-1.8,2.42,0));T(box(6.42,0.32,2.52,mTeal,-1.8,1.2,0));
     [1,-1].forEach(function(s){var p=new THREE.Mesh(new THREE.PlaneGeometry(5.6,1.22),decalMat());p.position.set(-1.8,2.62,s*1.26);if(s<0)p.rotation.y=Math.PI;T(ns(p))});
     T(ns(box(0.03,2.5,0.03,mDark,-5.02,2.42,0)));[-0.9,0.9].forEach(function(z){T(ns(box(0.04,0.2,0.1,mMetal,-5.03,1.9,z)));T(ns(box(0.04,0.2,0.1,mMetal,-5.03,3.0,z)))});
     T(box(0.16,0.26,2.3,mDark,-5.08,0.85,0));[-0.95,0.95].forEach(function(z){T(ns(box(0.04,0.55,0.5,mDark,-5.0,0.62,z)))});
-    T(beacon(-4.7,3.82,0,bc));
+    T(beacon(-4.7,3.82,0,bc));g.userData.rl={x:-5.16,y:0.85};
     addWheels(g,[3.9,1.55,0.4]);addWheels(tr,[-3.0-HITCH,-3.9-HITCH,-4.8-HITCH])}
   g.userData.beacons=bc}
 /* флаг Delta Industries: дельта, капля рассола, молния и лист (рассол · литий · зелёная энергия) */
@@ -712,9 +712,9 @@ function addLights(g){var bb=new THREE.Box3(),_b=new THREE.Box3();g.updateMatrix
   g.traverse(function(o){if(o.isMesh&&!o.userData.fx){if(!o.geometry.boundingBox)o.geometry.computeBoundingBox();_b.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);bb.union(_b)}});
   var x0=bb.min.x,x1=bb.max.x,zw=Math.min(bb.max.z,1.3)-0.15,
   B=new THREE.MeshBasicMaterial({color:0x4a0d0a}),Lm=new THREE.MeshBasicMaterial({color:0x4a3500}),Rm=new THREE.MeshBasicMaterial({color:0x4a3500});
-  var R=g.userData.tr||g,rx=g.userData.tr?g.userData.tr.position.x:0;
-  [-1,1].forEach(function(s){R.add(mesh(new THREE.BoxGeometry(0.06,0.22,0.4),B,x0-0.02-rx,1.15,s*(zw-0.25),false));
-    var m=s<0?Lm:Rm;R.add(mesh(new THREE.BoxGeometry(0.06,0.18,0.22),m,x0-0.02-rx,1.45,s*zw,false));g.add(mesh(new THREE.BoxGeometry(0.06,0.16,0.26),m,x1+0.02,1.2,s*zw,false))});
+  var R=g.userData.tr||g,rx=g.userData.tr?g.userData.tr.position.x:0,rl=g.userData.rl,xr=rl?rl.x:x0,yb=rl?rl.y:1.15,yt=rl?rl.y:1.45,zb=rl?zw-0.5:zw-0.25,zt=rl?zw-0.15:zw;
+  [-1,1].forEach(function(s){R.add(mesh(new THREE.BoxGeometry(0.06,0.2,0.4),B,xr-0.02-rx,yb,s*zb,false));
+    var m=s<0?Lm:Rm;R.add(mesh(new THREE.BoxGeometry(0.06,0.18,0.22),m,xr-0.02-rx,yt,s*zt,false));g.add(mesh(new THREE.BoxGeometry(0.06,0.16,0.26),m,x1+0.02,1.2,s*zw,false))});
   g.userData.L={b:B,l:Lm,r:Rm,bc:g.userData.beacons||[]};return g}
 function car(type,color,noDriver){
   var g=new THREE.Group(),bm=M(color,{roughness:.3,metalness:.6}),gl=mGlass;
@@ -1292,7 +1292,7 @@ var RING=null,OUTR=null,RT=null,RBT={x:-52,z:-82,rin:12.5,ra:6.8};
   function slotLocal(idx){var layer=Math.floor(idx/10),p=idx%10,xi=Math.floor(p/2),zi=p%2;return [-4.5+xi*1.2,1.19+0.6+layer*1.2,zi?0.62:-0.62]}
   function flatbed(col){var g=new THREE.Group(),cb=semiCab(col,true);cb.position.x=1.9;g.add(cb);
     var tr=new THREE.Group();tr.position.x=FH;g.add(tr);g.userData.tr=tr;function T(o){o.position.x-=FH;tr.add(o);return o}
-    g.add(box(4.0,0.32,1.1,mDark,2.5,0.78,0));g.add(ns(cyl(0.38,0.38,0.08,mDark,FH,1.1,0,16)));
+    g.add(box(4.0,0.32,1.1,mDark,2.5,0.78,0));g.add(ns(cyl(0.38,0.38,0.08,mDark,FH,1.1,0,16)));g.userData.rl={x:-5.36,y:0.85};
     T(box(6.0,0.32,1.1,mDark,-2.2,0.85,0));T(box(6.8,0.18,2.5,M(0x8a6a44,{roughness:.8}),-1.8,1.1,0));T(box(6.8,0.3,0.1,mTeal,-1.8,0.95,1.25));T(box(6.8,0.3,0.1,mTeal,-1.8,0.95,-1.25));
     T(box(0.12,1.3,2.4,mMetal,1.5,1.85,0));T(box(0.16,0.26,2.3,mDark,-5.28,0.85,0));[-0.95,0.95].forEach(function(z){T(ns(box(0.04,0.55,0.5,mDark,-5.2,0.62,z)))});
     var bc=cb.userData.bc.slice();T(beacon(1.5,2.55,0,bc));g.userData.beacons=bc;
