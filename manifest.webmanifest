@@ -1,0 +1,20 @@
+{
+ "name": "WhiteStone 3D",
+ "short_name": "WhiteStone 3D",
+ "start_url": "./",
+ "display": "fullscreen",
+ "background_color": "#0f1c24",
+ "theme_color": "#0f1c24",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  }
+ ]
+}
