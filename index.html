@@ -570,7 +570,7 @@ function beacon(x,y,z,bc){var g=new THREE.Group(),bm=new THREE.MeshBasicMaterial
   g.add(ns(mesh(new THREE.CylinderGeometry(0.105,0.12,0.15,28),lens,0,0.11,0,false)));g.add(ns(mesh(new THREE.SphereGeometry(0.105,28,10,0,Math.PI*2,0,Math.PI/2),lens,0,0.185,0,false)));
   var rot=new THREE.Group();rot.position.y=0.11;rot.add(ns(mesh(new THREE.BoxGeometry(0.025,0.11,0.13),bm,0.035,0,0,false)));rot.add(ns(mesh(new THREE.CylinderGeometry(0.02,0.02,0.12,8),bm,0,0,0,false)));
   var bmat=new THREE.MeshBasicMaterial({map:T.beam,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,opacity:0.8});
-  [0,Math.PI].forEach(function(a){var p=new THREE.Mesh(new THREE.PlaneGeometry(2.2,0.32),bmat);p.geometry.translate(1.1,0,0);p.rotation.y=a;rot.add(p)});g.add(rot);
+  [0,Math.PI].forEach(function(a){var p=new THREE.Mesh(new THREE.PlaneGeometry(2.2,0.32),bmat);p.geometry.translate(1.1,0,0);p.rotation.y=a;p.userData.fx=1;rot.add(p)});g.add(rot);
   var gm=new THREE.SpriteMaterial({map:T.glow,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}),gl=new THREE.Sprite(gm);gl.position.y=0.12;g.add(gl);
   g.position.set(x,y,z);bc.push(bm);BEACONS.push({rot:rot,gl:gl,gm:gm,bm:bmat,ph:Math.random()*6.28});return g}
 /* кабина */
@@ -708,7 +708,9 @@ function buildCar(g,type,col){var P=CARP[type],G=carGeo(type),key=type+col;if(!_
   carWheels(g,P)}
 
 /* стоп-сигналы, поворотники, маячки (свой материал у каждой машины) */
-function addLights(g){var bb=new THREE.Box3().setFromObject(g),x0=bb.min.x,x1=bb.max.x,zw=Math.min(bb.max.z,1.3)-0.15,
+function addLights(g){var bb=new THREE.Box3(),_b=new THREE.Box3();g.updateMatrixWorld(true);
+  g.traverse(function(o){if(o.isMesh&&!o.userData.fx){if(!o.geometry.boundingBox)o.geometry.computeBoundingBox();_b.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);bb.union(_b)}});
+  var x0=bb.min.x,x1=bb.max.x,zw=Math.min(bb.max.z,1.3)-0.15,
   B=new THREE.MeshBasicMaterial({color:0x4a0d0a}),Lm=new THREE.MeshBasicMaterial({color:0x4a3500}),Rm=new THREE.MeshBasicMaterial({color:0x4a3500});
   var R=g.userData.tr||g,rx=g.userData.tr?g.userData.tr.position.x:0;
   [-1,1].forEach(function(s){R.add(mesh(new THREE.BoxGeometry(0.06,0.22,0.4),B,x0-0.02-rx,1.15,s*(zw-0.25),false));
